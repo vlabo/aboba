@@ -10,7 +10,6 @@ edition = "2018"
 gtk = {git = "https://github.com/gtk-rs/gtk-rs"}
 gstreamer = "0.16.7"
 anyhow = "1.0.40"
-glib = "0.10.3"
 gstreamer-player = "0.16.0"
 derive_more = "0.99.5"
 timer = "0.2.0"
