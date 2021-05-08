@@ -1,18 +1,25 @@
 use gtk::prelude::*;
-// use gio::prelude::*;
-
-mod player;
-mod chapters;
-
-use player::*;
-use chapters::*;
 use gtk::glib;
+
+mod player_view;
+mod chapters_view;
+mod books_view;
+
+use player_view::*;
+use chapters_view::*;
+use books_view::*;
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct Ui {
     window: gtk::Window,
-    player: Player,
-    chapters: Chapters,
+    books_view: Rc<BooksView>,
+    player_view: Rc<PlayerView>,
+    chapters_view: Rc<ChaptersView>,
     open_button: gtk::Button,
+    books_list: Rc<RefCell<Vec<String>>>,
+    stack: gtk::Stack,
 }
 
 impl Ui {
@@ -34,62 +41,90 @@ impl Ui {
         window.set_titlebar(Some(&bar));
 
         // Player
-        let player = Player::new();
-        let player_container = player.get_container();
+        let player_view = PlayerView::new();
+        let player_container = player_view.get_container();
 
         // Chapters
-        let chapters = Chapters::new();
-        let chapters_container = chapters.get_container();
+        let chapters_view = ChaptersView::new();
+        let chapters_container = chapters_view.get_container();
+
+        // Books list
+        let books_view = BooksView::new();
+        let _books_container = books_view.get_container();
 
         let stack = gtk::Stack::new();
         stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
 
-        stack.add(player.get_container());
-        stack.add(chapters.get_container());
+        stack.add(books_view.get_container());
+        stack.add(player_view.get_container());
+        stack.add(chapters_view.get_container());
 
-        chapters.set_back_fn(glib::clone!(@weak stack, @weak player_container => move |_| {
+        chapters_view.set_back_fn(glib::clone!(@weak stack, @weak player_container => move |_| {
             stack.set_visible_child(&player_container);
         }));
 
-        player.set_open_chapters_fn(glib::clone!(@weak stack, @weak chapters_container => move |_| {
+        player_view.set_open_chapters_fn(glib::clone!(@weak stack, @weak chapters_container => move |_| {
             stack.set_visible_child(&chapters_container);
         }));
 
         window.add(&stack);
 
-        return Self{window, player, chapters, open_button};
+        let books_list = Rc::new(RefCell::new(Vec::<String>::new()));
+
+        return Self{window, books_view: Rc::new(books_view), player_view: Rc::new(player_view), chapters_view: Rc::new(chapters_view), open_button, books_list, stack};
     }
 
     pub fn setup_open_button(&self, get_control: &'static dyn Fn(&str) -> super::audio::Control) {
         let open_button = &self.open_button;
         let window = &self.window;
-        let chapters = &self.chapters;
-        let player = &self.player;
-        open_button.connect_clicked(glib::clone!(@weak window, @weak chapters, @weak player => move |_| {
+        
+        let books = self.books_view.clone();
+        let books_list = self.books_list.clone();
+
+        open_button.connect_clicked(glib::clone!(@weak window => move |_| {
 
             let file_chooser = gtk::FileChooserDialog::new(
-                Some("Open File"),
+                Some("Open"),
                 Some(&window),
-                gtk::FileChooserAction::Open,
+                gtk::FileChooserAction::SelectFolder,
             );
             file_chooser.add_buttons(&[
-                ("Open", gtk::ResponseType::Ok),
+                ("Select", gtk::ResponseType::Ok),
                 ("Cancel", gtk::ResponseType::Cancel),
             ]);
-            file_chooser.connect_response(move |file_chooser, response| {
+            let books = books.clone();
+            
+            file_chooser.connect_response(glib::clone!(@strong books, @strong books_list => move |file_chooser, response| {
                 if response == gtk::ResponseType::Ok {
-                    let file = file_chooser.filename().expect("Couldn't get filename");
-                    if let Some(file_str) = file.as_path().to_str() {
-                        let book = super::filemanager::get_book(file_str);
-                        let control = get_control(file_str);
-                        chapters.set_chapters(&book.chapters, control.clone());
-                        player.initialize_book(&book.title, &book.chapters, control);
+                    let dir = file_chooser.filename().expect("Couldn't get filename");
+                    if let Ok(mut list) = super::filemanager::scan_dir(dir.as_path()) {
+                        books.add_book_list(&list);
+
+                        let mut books_list = books_list.borrow_mut();
+                        books_list.append(&mut list);
+                    
                     }
+                    
+                    
                 }
                 file_chooser.close();
-            });
+            }));
 
             file_chooser.show_all();
+        }));
+
+        let books_list = self.books_list.clone();
+        let stack = &self.stack;
+        let chapters_view = self.chapters_view.clone();
+        let player_view = self.player_view.clone();
+        self.books_view.connect_book_selected(glib::clone!(@weak stack, @strong chapters_view, @strong player_view, @strong books_list => move |i| {
+            let books_list = books_list.borrow();
+            println!("{}", &books_list[i]);
+            let book = super::filemanager::get_book(&books_list[i]);
+            let control = get_control(&books_list[i]);
+            chapters_view.set_chapters(&book.chapters, control.clone());
+            player_view.initialize_book(&book.title, &book.chapters, control);
+            stack.set_visible_child(player_view.get_container());
         }));
     }
 

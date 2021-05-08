@@ -4,7 +4,7 @@ use gtk::prelude::*;
 use std::time::Duration;
 use super::super::filemanager::Chapter;
 
-pub struct Player {
+pub struct PlayerView {
     container: gtk::Box,
     chapters_button: gtk::Button,
     play_button: gtk::Button,
@@ -14,17 +14,7 @@ pub struct Player {
     progress_bar: gtk::Scale,
 }
 
-pub struct PlayerWeak {
-    container: glib::WeakRef<gtk::Box>,
-    chapters_button: glib::WeakRef<gtk::Button>,
-    play_button: glib::WeakRef<gtk::Button>,
-    play_back_button: glib::WeakRef<gtk::Button>,
-    title: glib::WeakRef<gtk::Label>,
-    chapter: glib::WeakRef<gtk::Label>,
-    progress_bar: glib::WeakRef<gtk::Scale>,
-}
-
-impl Player {
+impl PlayerView {
     pub fn new() -> Self {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 5);
         let progress_bar = gtk::Scale::new(
@@ -148,80 +138,5 @@ impl Player {
             }
         }
         return None;
-    }
-}
-
-impl glib::clone::Downgrade for Player {
-    type Weak = PlayerWeak;
-
-    fn downgrade(&self) -> Self::Weak {
-        Self::Weak {
-            container: glib::clone::Downgrade::downgrade(&self.container),
-            chapters_button: glib::clone::Downgrade::downgrade(&self.chapters_button),
-            play_button: glib::clone::Downgrade::downgrade(&self.play_button),
-            play_back_button: glib::clone::Downgrade::downgrade(&self.play_back_button),
-            title: glib::clone::Downgrade::downgrade(&self.title),
-            chapter: glib::clone::Downgrade::downgrade(&self.chapter),
-            progress_bar: glib::clone::Downgrade::downgrade(&self.progress_bar),
-        }
-    }
-}
-
-impl glib::clone::Upgrade for PlayerWeak {
-    type Strong = Player;
-
-    fn upgrade(&self) -> Option<Self::Strong> {
-        let container;
-        let chapters_button;
-        let play_button;
-        let play_back_button;
-        let title;
-        let chapter;
-        let progress_bar;
-        if let Some(c) = self.container.upgrade() {
-            container = c;
-        } else {
-            return None;
-        }
-        if let Some(c) = self.chapters_button.upgrade() {
-            chapters_button = c;
-        } else {
-            return None;
-        }
-        if let Some(p) = self.play_button.upgrade() {
-            play_button = p;
-        } else {
-            return None;
-        }
-        if let Some(p) = self.play_back_button.upgrade() {
-            play_back_button = p;
-        } else {
-            return None;
-        }
-        if let Some(t) = self.title.upgrade() {
-            title = t;
-        } else {
-            return None;
-        }
-        if let Some(c) = self.chapter.upgrade() {
-            chapter = c;
-        } else {
-            return None;
-        }
-
-        if let Some(p) = self.progress_bar.upgrade() {
-            progress_bar = p;
-        } else {
-            return None;
-        }
-        return Some(Self::Strong {
-            container,
-            chapters_button,
-            play_button,
-            play_back_button,
-            title,
-            chapter,
-            progress_bar,
-        });
     }
 }

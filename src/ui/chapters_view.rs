@@ -4,21 +4,14 @@ use gtk::glib;
 use super::super::filemanager::Chapter;
 use super::super::audio::Control;
 
-pub struct Chapters {
+pub struct ChaptersView {
     container: gtk::Box,
     back_button: gtk::Button,
     play_chapter_button: gtk::Button,
     list: gtk::ListBox,
 }
 
-pub struct ChaptersWeak {
-    container: glib::WeakRef<gtk::Box>,
-    back_button: glib::WeakRef<gtk::Button>,
-    play_chapter_button: glib::WeakRef<gtk::Button>,
-    list: glib::WeakRef<gtk::ListBox>,
-}
-
-impl Chapters {
+impl ChaptersView {
     pub fn new() -> Self {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 2);
         let control = gtk::Box::new(gtk::Orientation::Horizontal, 2);
@@ -72,58 +65,5 @@ impl Chapters {
                 back_button.emit_clicked();
             }
         }));
-    }
-}
-
-impl glib::clone::Downgrade for Chapters {
-    type Weak = ChaptersWeak;
-
-    fn downgrade(&self) -> Self::Weak {
-        Self::Weak {
-            container: glib::clone::Downgrade::downgrade(&self.container),
-            back_button: glib::clone::Downgrade::downgrade(&self.back_button),
-            play_chapter_button: glib::clone::Downgrade::downgrade(&self.play_chapter_button),
-            list: glib::clone::Downgrade::downgrade(&self.list),
-        }
-    }
-}
-
-impl glib::clone::Upgrade for ChaptersWeak {
-    type Strong = Chapters;
-
-    fn upgrade(&self) -> Option<Self::Strong> {
-
-        let container;
-        let back_button;
-        let play_chapter_button;
-        let list;
-
-        if let Some(c) = self.container.upgrade() {
-            container = c;
-        } else {
-            return None;
-        }
-        if let Some(b) = self.back_button.upgrade() {
-            back_button = b;
-        } else {
-            return None;
-        }
-        if let Some(p) = self.play_chapter_button.upgrade() {
-            play_chapter_button = p;
-        } else {
-            return None;
-        }
-        if let Some(l) = self.list.upgrade() {
-            list = l;
-        } else {
-            return None;
-        }
-
-        return Some(Self::Strong {
-            container,
-            back_button,
-            play_chapter_button,
-            list,
-        });
     }
 }
