@@ -1,8 +1,8 @@
+use gst::glib;
 use gst::gst_element_error;
 use gst::gst_element_warning;
 use gst::prelude::*;
-use gst::glib;
-use gst::{SeekFlags};
+use gst::SeekFlags;
 
 use anyhow::Error;
 use derive_more::{Display, Error};
@@ -40,10 +40,8 @@ impl Player {
         let decodebin = gst::ElementFactory::make("decodebin", None)
             .map_err(|_| MissingElement("decodebin"))?;
 
-
         pipeline.add_many(&[&src, &decodebin])?;
         gst::Element::link_many(&[&src, &decodebin])?;
-
 
         let pipeline_weak = pipeline.downgrade();
 
@@ -111,7 +109,8 @@ impl Player {
             }
         });
 
-        // pipeline.set_state(gst::State::Paused)?;
+        
+
         let bus = pipeline
             .get_bus()
             .expect("Pipeline without bus. Shouldn't happen!");
@@ -121,20 +120,23 @@ impl Player {
             use gst::MessageView;
 
             match msg.view() {
-                MessageView::Eos(..) => {},
+                MessageView::Eos(..) => {}
                 MessageView::Error(err) => {
                     // if let Some(pipeline) = pipeline_weak.upgrade() {
                     //     pipeline.set_state(gst::State::Null).unwrap();
                     // }
-                    println!("{}", ErrorMessage {
-                        src: msg
-                            .get_src()
-                            .map(|s| String::from(s.get_path_string()))
-                            .unwrap_or_else(|| String::from("None")),
-                        error: err.get_error().to_string(),
-                        debug: err.get_debug(),
-                        source: err.get_error(),
-                    });
+                    println!(
+                        "{}",
+                        ErrorMessage {
+                            src: msg
+                                .get_src()
+                                .map(|s| String::from(s.get_path_string()))
+                                .unwrap_or_else(|| String::from("None")),
+                            error: err.get_error().to_string(),
+                            debug: err.get_debug(),
+                            source: err.get_error(),
+                        }
+                    );
                 }
                 MessageView::StateChanged(s) => {
                     println!(
@@ -160,21 +162,23 @@ impl Player {
                 _ => (),
             }
             glib::Continue(true)
-        }).expect("Failed to add bus watch");
+        })
+        .expect("Failed to add bus watch");
         return Ok(Player { pipeline, src });
     }
 
     pub fn new_control(&self) -> Control {
-        Control { pipeline: self.pipeline.downgrade() }
+        Control {
+            pipeline: self.pipeline.downgrade(),
+        }
     }
 
-    pub fn set_file(&self, file: &String)  {
+    pub fn set_file(&self, file: &String) {
         self.src.set_property("location", file).unwrap();
     }
 }
 
 impl Control {
-
     pub fn play(&self) -> Result<(), Error> {
         if let Some(pipeline) = self.pipeline.upgrade() {
             let _ = pipeline.set_state(gst::State::Playing)?;
@@ -245,5 +249,4 @@ impl Control {
             let _ = pipeline.seek_simple(SeekFlags::FLUSH | SeekFlags::ACCURATE, time);
         };
     }
-
 }

@@ -1,11 +1,12 @@
-extern crate gstreamer as gst;
 extern crate ffmpeg_next as ffmpeg;
+extern crate gstreamer as gst;
 #[macro_use]
 extern crate lazy_static;
 
 mod audio;
 mod filemanager;
 mod ui;
+mod util;
 
 use gtk::prelude::*;
 use ui::*;
@@ -26,10 +27,7 @@ fn build_ui(application: &gtk::Application) {
 }
 
 fn main() {
-    let application = gtk::Application::new(
-        Some("com.github.vlabo.aboba"),
-        Default::default(),
-    );
+    let application = gtk::Application::new(Some("com.github.vlabo.aboba"), Default::default());
 
     application.connect_activate(build_ui);
     application.run();

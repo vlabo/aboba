@@ -1,8 +1,10 @@
 use super::super::audio::Control;
+use super::super::filemanager::Chapter;
 use gtk::glib;
 use gtk::prelude::*;
 use std::time::Duration;
-use super::super::filemanager::Chapter;
+
+use super::super::util;
 
 pub struct PlayerView {
     container: gtk::Box,
@@ -12,11 +14,15 @@ pub struct PlayerView {
     title: gtk::Label,
     chapter: gtk::Label,
     progress_bar: gtk::Scale,
+    progress: gtk::Label,
 }
 
 impl PlayerView {
     pub fn new() -> Self {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 5);
+        let progress = gtk::Label::new(None);
+        progress.set_hexpand(true);
+        container.add(&progress);
         let progress_bar = gtk::Scale::new(
             gtk::Orientation::Horizontal,
             Some(&gtk::Adjustment::new(0.0, 0.0, 0.0, 1.0, 0.0, 0.0)),
@@ -59,6 +65,7 @@ impl PlayerView {
             title,
             chapter,
             progress_bar,
+            progress,
         };
     }
 
@@ -94,21 +101,26 @@ impl PlayerView {
         let manual_control = control.clone();
         let chapter_title = &self.chapter;
         let chaps = chapters.to_vec();
-        glib::timeout_add_local(Duration::from_millis(500), glib::clone!(@weak progress_bar, @weak chapter_title => @default-return glib::Continue(false), move || {
-            if control.is_playing() {
-                let position = control.get_position() as i64;
-                if let Some(i) = Self::get_current_chapter(&chaps, position) {
-                    let chapter = &chaps[i];
-                    progress_bar.set_range(0.0, (chapter.end - chapter.start) as f64);
-                    progress_bar.set_value((position - chapter.start) as f64);
-                    chapter_title.set_label(&chapter.title);
+        let progress = &self.progress;
+        glib::timeout_add_local(
+            Duration::from_millis(500),
+            glib::clone!(@weak progress_bar, @weak chapter_title, @weak progress => @default-return glib::Continue(false), move || {
+                if control.is_playing() {
+                    let position = control.get_position() as i64;
+                    if let Some(i) = Self::get_current_chapter(&chaps, position) {
+                        let chapter = &chaps[i];
+                        progress_bar.set_range(0.0, (chapter.end - chapter.start) as f64);
+                        progress_bar.set_value((position - chapter.start) as f64);
+                        chapter_title.set_label(&chapter.title);
+                        progress.set_text(&util::time_int_to_string((position - chapter.start) as u64));
+                    }
                 }
-            }
-            glib::Continue(true)
-        }));
+                glib::Continue(true)
+            }),
+        );
 
         let chaps2 = chapters.to_vec();
-        progress_bar.connect_change_value( move |_, _, v| {
+        progress_bar.connect_change_value(move |_, _, v| {
             let position = manual_control.get_position() as i64;
             if let Some(i) = Self::get_current_chapter(&chaps2, position) {
                 let chapter = &chaps2[i];
@@ -116,6 +128,10 @@ impl PlayerView {
             }
 
             gtk::Inhibit(false)
+        });
+
+        progress_bar.connect_format_value(|_, _| {
+            return String::new();
         });
     }
 

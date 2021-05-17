@@ -1,8 +1,10 @@
-use gtk::prelude::*;
 use gtk::glib;
+use gtk::prelude::*;
 
-use super::super::filemanager::Chapter;
 use super::super::audio::Control;
+use super::super::filemanager::Chapter;
+
+use super::super::util;
 
 pub struct ChaptersView {
     container: gtk::Box,
@@ -37,7 +39,12 @@ impl ChaptersView {
 
         container.add(&control);
 
-        return Self {container, back_button, play_chapter_button, list};
+        return Self {
+            container,
+            back_button,
+            play_chapter_button,
+            list,
+        };
     }
 
     pub fn set_back_fn<F: Fn(&gtk::Button) + 'static>(&self, f: F) {
@@ -50,20 +57,34 @@ impl ChaptersView {
 
     pub fn set_chapters(&self, chapters: &Vec<Chapter>, control: Control) {
         for chapter in chapters {
-            let label = gtk::Label::new(Some(&chapter.title));
-            self.list.add(&label);
-            label.show();
+            let container = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+            container.set_hexpand(true);
+            let label_name = gtk::Label::new(Some(&chapter.title));
+            container.add(&label_name);
+            label_name.set_halign(gtk::Align::Start);
+            label_name.set_hexpand(true);
+
+            let time = util::time_int_to_string((chapter.end - chapter.start) as u64);
+            let label_duration = gtk::Label::new(Some(&time.to_string()));
+            label_duration.set_halign(gtk::Align::End);
+            container.add(&label_duration);
+            label_duration.set_hexpand(true);
+
+            self.list.add(&container);
+            container.show_all();
         }
 
         let list = &self.list;
         let back_button = &self.back_button;
         let c = chapters.to_vec();
-        self.play_chapter_button.connect_clicked(glib::clone!(@weak list, @weak back_button => move |_| {
-            if let Some(row) = list.selected_row() {
-                let chapter = &c[row.index() as usize];
-                control.set_position(chapter.start as u64);
-                back_button.emit_clicked();
-            }
-        }));
+        self.play_chapter_button.connect_clicked(
+            glib::clone!(@weak list, @weak back_button => move |_| {
+                if let Some(row) = list.selected_row() {
+                    let chapter = &c[row.index() as usize];
+                    control.set_position(chapter.start as u64);
+                    back_button.emit_clicked();
+                }
+            }),
+        );
     }
 }

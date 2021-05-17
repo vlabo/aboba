@@ -1,4 +1,5 @@
 use gtk::prelude::*;
+use super::super::filemanager::Book;
 
 pub struct BooksView {
     container: gtk::Box,
@@ -16,22 +17,22 @@ impl BooksView {
 
         let viewport = gtk::Viewport::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         viewport.set_vexpand(true);
-        let list = gtk::ListBox::new();    
+        let list = gtk::ListBox::new();
 
         viewport.add(&list);
         sw.add(&viewport);
         sw.set_vexpand(true);
         container.add(&sw);
-        return Self {container, list}
+        return Self { container, list };
     }
 
     pub fn get_container(&self) -> &gtk::Box {
         return &self.container;
     }
 
-    pub fn add_book_list(&self, book_list: &Vec<String>) {
+    pub fn add_book_list(&self, book_list: &Vec<Book>) {
         for book in book_list {
-            let label = gtk::Label::new(Some(&book));
+            let label = gtk::Label::new(Some(&book.title));
             self.list.add(&label);
             label.show();
         }
@@ -44,5 +45,4 @@ impl BooksView {
             }
         });
     }
-
 }
