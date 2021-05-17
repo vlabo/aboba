@@ -1,5 +1,5 @@
-use gtk::prelude::*;
 use super::super::filemanager::Book;
+use gtk::prelude::*;
 
 pub struct BooksView {
     container: gtk::Box,

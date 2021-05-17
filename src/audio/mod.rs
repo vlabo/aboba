@@ -109,8 +109,6 @@ impl Player {
             }
         });
 
-        
-
         let bus = pipeline
             .get_bus()
             .expect("Pipeline without bus. Shouldn't happen!");

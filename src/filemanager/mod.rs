@@ -1,10 +1,10 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
-use std::path::Path;
 use std::io::Write;
+use std::path::Path;
 
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Chapter {
