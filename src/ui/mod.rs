@@ -9,10 +9,10 @@ use books_view::*;
 use chapters_view::*;
 use player_view::*;
 
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::rc::Rc;
 
-use super::filemanager::Book;
+use super::filemanager::{self, Book, Books};
 
 pub struct Ui {
     window: gtk::Window,
@@ -20,8 +20,9 @@ pub struct Ui {
     player_view: Rc<PlayerView>,
     chapters_view: Rc<ChaptersView>,
     open_button: gtk::Button,
-    books_list: Rc<RefCell<Vec<Book>>>,
+    books_list: Rc<Cell<Option<Books>>>,
     stack: gtk::Stack,
+    selected_book: Rc<Cell<Option<Book>>>,
 }
 
 impl Ui {
@@ -76,7 +77,7 @@ impl Ui {
 
         window.add(&stack);
 
-        let books_list = Rc::new(RefCell::new(Vec::<Book>::new()));
+        let books_list = Rc::new(Cell::new(None));
 
         return Self {
             window,
@@ -86,6 +87,7 @@ impl Ui {
             open_button,
             books_list,
             stack,
+            selected_book: Rc::new(Cell::new(None)),
         };
     }
 
@@ -112,11 +114,12 @@ impl Ui {
             file_chooser.connect_response(glib::clone!(@strong books, @strong books_list => move |file_chooser, response| {
                 if response == gtk::ResponseType::Ok {
                     let dir = file_chooser.filename().expect("Couldn't get filename");
-                    if let Ok(mut list) = super::filemanager::init_dir(dir.as_path()) {
-                        books.add_book_list(&list);
+                    if let Ok(list) = super::filemanager::init_dir(dir.as_path()) {
+                        books.add_book_list(&list.list);
 
-                        let mut books_list = books_list.borrow_mut();
-                        books_list.append(&mut list);
+                        let mut books = books_list.take();
+                        books.replace(list);
+                        books_list.set(books);
                     }
 
                 }
@@ -130,14 +133,32 @@ impl Ui {
         let stack = &self.stack;
         let chapters_view = self.chapters_view.clone();
         let player_view = self.player_view.clone();
-        self.books_view.connect_book_selected(glib::clone!(@weak stack, @strong chapters_view, @strong player_view, @strong books_list => move |i| {
-            let books_list = books_list.borrow();
-            let book = &books_list[i];
-            println!("{}", &book.title);
-            let control = get_control(&books_list[i].file);
-            chapters_view.set_chapters(&book.chapters, control.clone());
-            player_view.initialize_book(&book.title, &book.chapters, control);
-            stack.set_visible_child(player_view.get_container());
+        let selected_book = &self.selected_book;
+        self.books_view.connect_book_selected(glib::clone!(@weak stack, @strong chapters_view, @strong player_view, @strong books_list, @strong selected_book => move |i| {
+            if let Some(mut books) = books_list.take() {
+                let book = books.list.remove(i);
+                println!("{}", &book.title);
+                let control = get_control(&book.file);
+                chapters_view.set_chapters(&book.chapters, control.clone());
+                player_view.initialize_book(&book.title, &book.chapters, control);
+                stack.set_visible_child(player_view.get_container());
+
+                if let Some(old_book) = selected_book.replace(Some(book)) {
+                    books.list.push(old_book);
+                }
+                books_list.set(Some(books));
+            }
+        }));
+
+        window.connect_delete_event(glib::clone!(@strong selected_book, @strong books_list => @default-return gtk::Inhibit(false), move |_, _| {
+            if let Some(mut books_list) = books_list.take() {
+                if let Some(old_book) = selected_book.replace(None) {
+                    books_list.list.push(old_book);
+                }
+                filemanager::save_json(&books_list);
+            }
+
+            gtk::Inhibit(false)
         }));
     }
 

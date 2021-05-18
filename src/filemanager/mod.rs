@@ -21,6 +21,11 @@ pub struct Book {
     pub time: u64,
 }
 
+pub struct Books {
+    pub path: String,
+    pub list: Vec<Book>,
+}
+
 pub fn get_book(file: &str) -> Book {
     let mut chapters = Vec::new();
     let path = Path::new(file);
@@ -60,7 +65,7 @@ pub fn get_book(file: &str) -> Book {
     };
 }
 
-pub fn init_dir(folder: &Path) -> io::Result<Vec<Book>> {
+pub fn init_dir(folder: &Path) -> io::Result<Books> {
     let mut json_books: Vec<Book> = Vec::new();
 
     let mut books: Vec<Book> = Vec::new();
@@ -94,9 +99,19 @@ pub fn init_dir(folder: &Path) -> io::Result<Vec<Book>> {
         }
     }
 
+    let books_struct = Books {
+        path: folder.to_str().unwrap().to_string(),
+        list: books,
+    };
+    save_json(&books_struct);
+    Ok(books_struct)
+}
+
+pub fn save_json(books: &Books) {
+    let json_file = Path::new(&books.path).join("books.json");
+    let books = &books.list;
     if let Ok(mut file) = fs::File::create(json_file) {
         let serialized = serde_json::to_string(&books).unwrap();
         let _ = file.write_all(serialized.as_bytes());
     }
-    Ok(books)
 }
