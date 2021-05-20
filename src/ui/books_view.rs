@@ -1,9 +1,14 @@
-use super::super::filemanager::Book;
+use super::super::filemanager::{Book, Books};
+use gtk::glib;
 use gtk::prelude::*;
+
+use std::cell::Cell;
+use std::rc::Rc;
 
 pub struct BooksView {
     container: gtk::Box,
     list: gtk::ListBox,
+    books_list: Rc<Cell<Option<Books>>>,
 }
 
 impl BooksView {
@@ -23,26 +28,42 @@ impl BooksView {
         sw.add(&viewport);
         sw.set_vexpand(true);
         container.add(&sw);
-        return Self { container, list };
+
+        let books_list = Rc::new(Cell::new(None));
+        return Self {
+            container,
+            list,
+            books_list,
+        };
     }
 
     pub fn get_container(&self) -> &gtk::Box {
         return &self.container;
     }
 
-    pub fn add_book_list(&self, book_list: &Vec<Book>) {
-        for book in book_list {
+    pub fn add_book_list(&self, books: Books) {
+        for book in &books.list {
             let label = gtk::Label::new(Some(&book.title));
             self.list.add(&label);
             label.show();
         }
+        self.books_list.set(Some(books));
     }
 
-    pub fn connect_book_selected<F: Fn(usize) + 'static>(&self, f: F) {
-        self.list.connect_row_selected(move |_, row| {
-            if let Some(row) = row {
-                f(row.index() as usize);
-            }
-        });
+    pub fn get_books(&self) -> Option<Books> {
+        self.books_list.take()
+    }
+
+    pub fn connect_book_selected<F: Fn(Book) + 'static>(&self, f: F) {
+        let books_list = &self.books_list;
+        self.list
+            .connect_row_selected(glib::clone!(@weak books_list => move |_, row| {
+                if let Some(row) = row {
+                    if let Some(books) = books_list.take() {
+                        f(books.list[row.index() as usize].clone());
+                        books_list.set(Some(books));
+                    }
+                }
+            }));
     }
 }

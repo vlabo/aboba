@@ -1,10 +1,13 @@
 use super::super::audio::Control;
-use super::super::filemanager::Chapter;
+use super::super::filemanager::{Book, Chapter};
 use gtk::glib;
 use gtk::prelude::*;
 use std::time::Duration;
 
 use super::super::util;
+
+use std::cell::Cell;
+use std::rc::Rc;
 
 pub struct PlayerView {
     container: gtk::Box,
@@ -15,6 +18,7 @@ pub struct PlayerView {
     chapter: gtk::Label,
     progress_bar: gtk::Scale,
     progress: gtk::Label,
+    book: Rc<Cell<Option<Book>>>,
 }
 
 impl PlayerView {
@@ -57,6 +61,8 @@ impl PlayerView {
         control_box.add(&button_box);
         container.add(&control_box);
 
+        let book = Rc::new(Cell::new(None));
+
         return Self {
             container,
             chapters_button,
@@ -66,6 +72,7 @@ impl PlayerView {
             chapter,
             progress_bar,
             progress,
+            book,
         };
     }
 
@@ -77,20 +84,30 @@ impl PlayerView {
         return &self.container;
     }
 
-    pub fn initialize_book(&self, title: &str, chapters: &Vec<Chapter>, control: Control) {
-        self.title.set_label(title);
+    pub fn initialize_book(&self, book: Book, control: Control) {
+        self.title.set_label(&book.title);
         self.init_play_button(control.clone());
-        self.init_progress_bar(control.clone(), chapters);
+        self.init_progress_bar(control.clone(), &book.chapters);
         self.init_play_back_button(control);
+        self.book.set(Some(book));
     }
 
     fn init_play_button(&self, control: Control) {
+        let book = self.book.clone();
         self.play_button.connect_clicked(move |b| {
             if control.is_playing() {
                 let _ = control.pause();
+                if let Some(mut b) = book.take() {
+                    b.time = control.get_position();
+                    book.set(Some(b));
+                }
                 b.set_label("Play");
             } else {
                 let _ = control.play();
+                if let Some(b) = book.take() {
+                    control.set_position(b.time);
+                    book.set(Some(b));
+                }
                 b.set_label("Pause");
             }
         });
@@ -102,9 +119,10 @@ impl PlayerView {
         let chapter_title = &self.chapter;
         let chaps = chapters.to_vec();
         let progress = &self.progress;
+        let book = &self.book;
         glib::timeout_add_local(
             Duration::from_millis(500),
-            glib::clone!(@weak progress_bar, @weak chapter_title, @weak progress => @default-return glib::Continue(false), move || {
+            glib::clone!(@weak progress_bar, @weak chapter_title, @weak progress, @weak book => @default-return glib::Continue(false), move || {
                 if control.is_playing() {
                     let position = control.get_position() as i64;
                     if let Some(i) = Self::get_current_chapter(&chaps, position) {
@@ -113,6 +131,11 @@ impl PlayerView {
                         progress_bar.set_value((position - chapter.start) as f64);
                         chapter_title.set_label(&chapter.title);
                         progress.set_text(&util::time_int_to_string((position - chapter.start) as u64));
+
+                        // if let Some(mut book_value) = book.take() {
+                        //     book_value.time = position as u64;
+                        //     book.set(Some(book_value));
+                        // }
                     }
                 }
                 glib::Continue(true)
@@ -154,5 +177,14 @@ impl PlayerView {
             }
         }
         return None;
+    }
+
+    pub fn get_book(&self) -> Option<Book> {
+        let mut b = None;
+        if let Some(book) = self.book.take() {
+            b = Some(book.clone());
+            self.book.set(Some(book));
+        }
+        return b;
     }
 }

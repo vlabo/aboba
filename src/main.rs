@@ -1,5 +1,8 @@
 extern crate ffmpeg_next as ffmpeg;
 extern crate gstreamer as gst;
+
+extern crate rodio;
+
 #[macro_use]
 extern crate lazy_static;
 
