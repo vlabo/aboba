@@ -14,7 +14,7 @@ on debian based systems:
 ```
 3. `cargo build`
 
-## Roadmap  
+## Roadmap
 
 - [ ] Basic functionality  
     - [x] Play audio files
@@ -25,3 +25,4 @@ on debian based systems:
 - [ ] Better UX
     - [ ] Improve user interface
     - [ ] Support for more audio format
+    - [ ] Playback speed

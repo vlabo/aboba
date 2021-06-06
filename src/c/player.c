@@ -1,26 +1,13 @@
 #include <gst/gst.h>
 #include <stdio.h>
 
-// static int callback(GstBus *a, GstMessage *b, void *c) {
-//     (void)(a);
-//     (void)(b);
-//     (void)(c);
-//     return 0;
-// }
-
 void * agst_setup(void) {
     gst_init(0, 0);
-
-    GstElement *gst_player = gst_element_factory_make("playbin", "play");
-    // GstBus *gst_bus = gst_pipeline_get_bus(GST_PIPELINE(gst_player));
-    // gst_bus_add_watch(gst_bus, callback, NULL);
-    // gst_object_unref(gst_bus);
-    return (void*)gst_player;
+    return (void*)gst_element_factory_make("playbin", "play");
 }
 
 void agst_cleanup(void *gst_player) {
     gst_element_set_state((GstElement *)gst_player, GST_STATE_NULL);
-    //gst_object_unref(GST_OBJECT((GstElement *)gst_player));
 }
 
 void agst_set_file(void *gst_player, char *uri) {

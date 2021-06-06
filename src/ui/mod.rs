@@ -12,7 +12,7 @@ use player_view::*;
 // use std::cell::Cell;
 use std::rc::Rc;
 
-use super::filemanager::{self};//, Book, Books};
+use super::file_manager::{self};//, Book, Books};
 
 pub struct Ui {
     window: gtk::Window,
@@ -28,8 +28,6 @@ impl Ui {
         let builder = gtk::WindowBuilder::new();
         let window = builder
             .application(application)
-            .width_request(300)
-            .height_request(500)
             .build();
 
         window.set_border_width(0);
@@ -54,13 +52,16 @@ impl Ui {
         let books_view = BooksView::new();
         let _books_container = books_view.get_container();
 
+        // GUI Stack
         let stack = gtk::Stack::new();
         stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
 
         stack.add(books_view.get_container());
         stack.add(player_view.get_container());
         stack.add(chapters_view.get_container());
+        window.add(&stack);
 
+        // Events
         chapters_view.set_back_fn(
             glib::clone!(@weak stack, @weak player_container => move |_| {
                 stack.set_visible_child(&player_container);
@@ -72,10 +73,6 @@ impl Ui {
                 stack.set_visible_child(&chapters_container);
             }),
         );
-
-        window.add(&stack);
-
-        //let books_list = Rc::new(Cell::new(None));
 
         return Self {
             window,
@@ -90,8 +87,8 @@ impl Ui {
     pub fn setup_open_button(&self) {
         let open_button = &self.open_button;
         let window = &self.window;
-        let books = self.books_view.clone();
-        /*
+        let books_view = self.books_view.clone();
+
         open_button.connect_clicked(glib::clone!(@weak window => move |_| {
 
             let file_chooser = gtk::FileChooserDialog::new(
@@ -103,13 +100,13 @@ impl Ui {
                 ("Select", gtk::ResponseType::Ok),
                 ("Cancel", gtk::ResponseType::Cancel),
             ]);
-            let books = books.clone();
+            let books_view = books_view.clone();
 
-            file_chooser.connect_response(glib::clone!(@strong books => move |file_chooser, response| {
+            file_chooser.connect_response(glib::clone!(@strong books_view => move |file_chooser, response| {
                 if response == gtk::ResponseType::Ok {
                     let dir = file_chooser.filename().expect("Couldn't get filename");
-                    if let Ok(list) = super::filemanager::init_dir(dir.as_path()) {
-                        books.add_book_list(list);
+                    if let Ok(list) = file_manager::init_dir(dir.as_path()) {
+                        books_view.add_book_list(list);
                     }
 
                 }
@@ -117,28 +114,32 @@ impl Ui {
             }));
 
             file_chooser.show_all();
-        }));*/
+        }));
 
-        if let Ok(list) = super::filemanager::init_dir(std::path::Path::new("/home/vladimir/Audiobooks")) {
-            books.add_book_list(list);
-
-            let stack = &self.stack;
-            let chapters_view = self.chapters_view.clone();
-            let player_view = self.player_view.clone();
-            self.books_view.connect_book_selected(
-                glib::clone!(@weak stack, @strong chapters_view, @strong player_view => move |book| {
-                    println!("{}", &book.title);
-                    chapters_view.set_chapters(&book.chapters, player_view.get_control());
-                    player_view.initialize_book(book);
-                    stack.set_visible_child(player_view.get_container());
-                }),
-            );
+        let books = self.books_view.clone();
+        if let Some(user_dirs) = directories::UserDirs::new() {
+            let default_dir = user_dirs.home_dir().join("Audiobooks");
+            if let Ok(list) = file_manager::init_dir(&default_dir.as_path()) {
+                books.add_book_list(list);
+            }
         }
 
+        let stack = &self.stack;
+        let chapters_view = self.chapters_view.clone();
         let player_view = self.player_view.clone();
-        let books = self.books_view.clone();
-        window.connect_delete_event(glib::clone!(@strong books, @strong player_view => @default-return gtk::Inhabit(false), move |_, _| {
-            if let Some(mut books) = books.get_books() {
+        self.books_view.connect_book_selected(
+            glib::clone!(@weak stack, @strong chapters_view, @strong player_view => move |book| {
+                println!("{}", &book.title);
+                chapters_view.set_chapters(&book.chapters, player_view.clone());
+                player_view.initialize_book(book);
+                stack.set_visible_child(player_view.get_container());
+            }),
+        );
+
+        let player_view = self.player_view.clone();
+        let books_view = self.books_view.clone();
+        window.connect_delete_event(glib::clone!(@strong books_view, @strong player_view => @default-return gtk::Inhabit(false), move |_, _| {
+            if let Some(mut books) = books_view.get_books() {
                 if let Some(book) = player_view.get_book() {
                     for i in 0..books.list.len() {
                         if books.list[i].title.eq(&book.title) {
@@ -147,7 +148,7 @@ impl Ui {
                             break;
                         }
                     }
-                    filemanager::save_json(&books);
+                    file_manager::save_json(&books);
                 }
             }
             gtk::Inhibit(false)

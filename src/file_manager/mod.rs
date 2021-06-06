@@ -11,14 +11,15 @@ pub struct Chapter {
     pub title: String,
     pub start: i64,
     pub end: i64,
+    pub duration: i64,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Book {
     pub file: String,
     pub title: String,
     pub chapters: Vec<Chapter>,
-    pub time: u64,
+    pub time: i64,
 }
 
 pub struct Books {
@@ -32,30 +33,34 @@ pub fn get_book(file: &str) -> Book {
     match ffmpeg::format::input(&file) {
         Ok(ictx) => {
             for chapter in ictx.chapters() {
-                let title = match chapter.metadata().get("title") {
+                let mut title = match chapter.metadata().get("title") {
                     Some(title) => String::from(title),
                     None => String::new(),
                 };
 
+                if title.trim().len() == 0 {
+                    title = format!("Chapter {}", chapter.index());
+                }
+
+                let start = chapter.start() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
+                let end = chapter.end() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
+
                 chapters.push(Chapter {
                     title: title,
-                    start: chapter.start() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64,
-                    end: chapter.end() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64,
+                    start: start,
+                    end: end,
+                    duration: end - start,
                 });
             }
         }
 
         _ => {}
     }
-    let title: &str;
-    if let Some(t) = path.file_stem() {
-        if let Some(t2) = t.to_str() {
-            title = t2;
-        } else {
-            title = "";
+    let mut title: &str = "";
+    if let Some(file_stem) = path.file_stem() {
+        if let Some(file_name) = file_stem.to_str() {
+            title = file_name;
         }
-    } else {
-        title = "";
     }
 
     return Book {
@@ -71,7 +76,7 @@ pub fn init_dir(folder: &Path) -> io::Result<Books> {
 
     let mut books: Vec<Book> = Vec::new();
     let json_file = folder.join("books.json");
-    println!("{}", json_file.to_str().unwrap());
+
     if let Ok(contents) = fs::read_to_string(json_file.clone()) {
         json_books = serde_json::from_str(&contents).unwrap();
     }
@@ -81,12 +86,12 @@ pub fn init_dir(folder: &Path) -> io::Result<Books> {
             let entry = entry?;
             let path = entry.path();
             if let Some(ext) = &path.extension() {
-                if ext.eq(&OsStr::new("m4b")) || ext.eq(&OsStr::new("3gp")) {
+                if ext.eq(&OsStr::new("m4a")) || ext.eq(&OsStr::new("m4b")) || ext.eq(&OsStr::new("3gp")) {
                     if let Some(file_str) = path.to_str() {
                         let book = get_book(&file_str);
                         let mut found = false;
                         for p_book in &json_books {
-                            if p_book.title.eq(&book.title) {
+                            if p_book.file.eq(&book.file) {
                                 books.push(p_book.clone());
                                 found = true;
                             }

@@ -1,8 +1,8 @@
 use gtk::glib;
 use gtk::prelude::*;
 
-use super::super::audio::Player;
-use super::super::filemanager::Chapter;
+use super::super::file_manager::Chapter;
+use super::player_view::PlayerView;
 
 use super::super::util;
 
@@ -10,40 +10,46 @@ pub struct ChaptersView {
     container: gtk::Box,
     back_button: gtk::Button,
     play_chapter_button: gtk::Button,
-    list: gtk::ListBox,
+    chapter_list: gtk::ListBox,
 }
 
 impl ChaptersView {
     pub fn new() -> Self {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 2);
-        let control = gtk::Box::new(gtk::Orientation::Horizontal, 2);
 
-        let sw = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-        sw.set_shadow_type(gtk::ShadowType::EtchedIn);
-        sw.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
-        sw.set_vexpand(true);
+        // Scrolled window
+        let scrolled_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+        scrolled_window.set_shadow_type(gtk::ShadowType::EtchedIn);
+        scrolled_window.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+        scrolled_window.set_vexpand(true);
+        container.add(&scrolled_window);
 
+        // List Viewport
         let viewport = gtk::Viewport::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         viewport.set_vexpand(true);
-        let list = gtk::ListBox::new();
+        scrolled_window.add(&viewport);
 
-        viewport.add(&list);
-        sw.add(&viewport);
-        sw.set_vexpand(true);
-        container.add(&sw);
+        // Chapters List
+        let chapter_list = gtk::ListBox::new();
+        viewport.add(&chapter_list);
 
-        let back_button = gtk::Button::with_label("Back");
-        let play_chapter_button = gtk::Button::with_label("Play chapter");
-        control.add(&back_button);
-        control.add(&play_chapter_button);
-
+        // Buttons Container
+        let control = gtk::Box::new(gtk::Orientation::Horizontal, 2);
         container.add(&control);
+
+        // Back Button
+        let back_button = gtk::Button::with_label("Back");
+        control.add(&back_button);
+
+        // Play chapter button
+        let play_chapter_button = gtk::Button::with_label("Play chapter");
+        control.add(&play_chapter_button);
 
         return Self {
             container,
             back_button,
             play_chapter_button,
-            list,
+            chapter_list,
         };
     }
 
@@ -55,34 +61,38 @@ impl ChaptersView {
         return &self.container;
     }
 
-    pub fn set_chapters(&self, chapters: &Vec<Chapter>, control: Player) {
+    pub fn set_chapters(&self, chapters: &Vec<Chapter>, player_view: std::rc::Rc<PlayerView>) {
         for chapter in chapters {
+            // Container for single chapter
             let container = gtk::Box::new(gtk::Orientation::Horizontal, 2);
             container.set_hexpand(true);
+            self.chapter_list.add(&container);
+
+            // Chapter Name
             let label_name = gtk::Label::new(Some(&chapter.title));
-            container.add(&label_name);
             label_name.set_halign(gtk::Align::Start);
             label_name.set_hexpand(true);
             label_name.set_line_wrap(true);
+            container.add(&label_name);
 
-            let time = util::time_int_to_string((chapter.end - chapter.start) as u64);
+            // Chapter duration
+            let time = util::time_int_to_string(chapter.duration);
             let label_duration = gtk::Label::new(Some(&time.to_string()));
             label_duration.set_halign(gtk::Align::End);
-            container.add(&label_duration);
             label_duration.set_hexpand(true);
+            container.add(&label_duration);
 
-            self.list.add(&container);
             container.show_all();
         }
 
-        let list = &self.list;
+        let chapter_list = &self.chapter_list;
         let back_button = &self.back_button;
-        let c = chapters.to_vec();
+        let chapters = chapters.to_vec();
         self.play_chapter_button.connect_clicked(
-            glib::clone!(@weak list, @weak back_button => move |_| {
-                if let Some(row) = list.selected_row() {
-                    let chapter = &c[row.index() as usize];
-                    control.set_position(chapter.start);
+            glib::clone!(@weak chapter_list, @weak back_button, @weak player_view => move |_| {
+                if let Some(row) = chapter_list.selected_row() {
+                    let chapter = &chapters[row.index() as usize];
+                    player_view.set_position(chapter.start);
                     back_button.emit_clicked();
                 }
             }),

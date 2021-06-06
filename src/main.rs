@@ -1,20 +1,11 @@
 extern crate ffmpeg_next as ffmpeg;
 mod audio;
-mod filemanager;
+mod file_manager;
 mod ui;
 mod util;
 
 use gtk::prelude::*;
 use ui::*;
-
-// lazy_static! {
-//     static ref PLAYER: audio::Player = audio::Player::setup().unwrap();
-// }
-
-// fn setup(file: &str) -> audio::Control {
-//     PLAYER.set_file(&file.to_owned());
-//     return PLAYER.new_control();
-// }
 
 fn build_ui(application: &gtk::Application) {
     let ui = Ui::build_ui(application);

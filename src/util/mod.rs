@@ -1,4 +1,4 @@
-pub fn time_int_to_string(value: u64) -> String {
+pub fn time_int_to_string(value: i64) -> String {
     let mut time_string = String::new();
 
     let hours = value / 3200;
