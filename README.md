@@ -19,10 +19,9 @@ on debian based systems:
 - [ ] Basic functionality  
     - [x] Play audio files
     - [x] Seeking
-    - [ ] Position saving
-    - [x] Reading chapters info (tested with m4b)
+    - [x] Position saving
+    - [x] Reading chapters info (tested with m4b and 3gp)
     - [ ] Audio book library
 - [ ] Better UX
     - [ ] Improve user interface
     - [ ] Support for more audio format
-- [ ] Remove GStreamer as dependance (use ffmpeg for audio decoding)

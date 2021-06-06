@@ -9,6 +9,7 @@ pub struct BooksView {
     container: gtk::Box,
     list: gtk::ListBox,
     books_list: Rc<Cell<Option<Books>>>,
+    play_button: gtk::Button,
 }
 
 impl BooksView {
@@ -29,11 +30,15 @@ impl BooksView {
         sw.set_vexpand(true);
         container.add(&sw);
 
+        let play_button = gtk::Button::with_label("Play");
+        container.add(&play_button);
+
         let books_list = Rc::new(Cell::new(None));
         return Self {
             container,
             list,
             books_list,
+            play_button,
         };
     }
 
@@ -44,9 +49,11 @@ impl BooksView {
     pub fn add_book_list(&self, books: Books) {
         for book in &books.list {
             let label = gtk::Label::new(Some(&book.title));
+            label.set_line_wrap(true);
             self.list.add(&label);
             label.show();
         }
+        self.list.unselect_all();
         self.books_list.set(Some(books));
     }
 
@@ -56,9 +63,10 @@ impl BooksView {
 
     pub fn connect_book_selected<F: Fn(Book) + 'static>(&self, f: F) {
         let books_list = &self.books_list;
-        self.list
-            .connect_row_selected(glib::clone!(@weak books_list => move |_, row| {
-                if let Some(row) = row {
+        let list = &self.list;
+        self.play_button
+            .connect_clicked(glib::clone!(@weak books_list, @weak list => move |_| {
+                if let Some(row) = list.selected_row() {
                     if let Some(books) = books_list.take() {
                         f(books.list[row.index() as usize].clone());
                         books_list.set(Some(books));

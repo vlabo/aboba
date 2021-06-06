@@ -1,7 +1,7 @@
 use gtk::glib;
 use gtk::prelude::*;
 
-use super::super::audio::Control;
+use super::super::audio::Player;
 use super::super::filemanager::Chapter;
 
 use super::super::util;
@@ -55,7 +55,7 @@ impl ChaptersView {
         return &self.container;
     }
 
-    pub fn set_chapters(&self, chapters: &Vec<Chapter>, control: Control) {
+    pub fn set_chapters(&self, chapters: &Vec<Chapter>, control: Player) {
         for chapter in chapters {
             let container = gtk::Box::new(gtk::Orientation::Horizontal, 2);
             container.set_hexpand(true);
@@ -63,6 +63,7 @@ impl ChaptersView {
             container.add(&label_name);
             label_name.set_halign(gtk::Align::Start);
             label_name.set_hexpand(true);
+            label_name.set_line_wrap(true);
 
             let time = util::time_int_to_string((chapter.end - chapter.start) as u64);
             let label_duration = gtk::Label::new(Some(&time.to_string()));
@@ -81,7 +82,7 @@ impl ChaptersView {
             glib::clone!(@weak list, @weak back_button => move |_| {
                 if let Some(row) = list.selected_row() {
                     let chapter = &c[row.index() as usize];
-                    control.set_position(chapter.start as u64);
+                    control.set_position(chapter.start);
                     back_button.emit_clicked();
                 }
             }),

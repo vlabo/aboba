@@ -36,10 +36,11 @@ pub fn get_book(file: &str) -> Book {
                     Some(title) => String::from(title),
                     None => String::new(),
                 };
+
                 chapters.push(Chapter {
                     title: title,
-                    start: chapter.start() / 1000,
-                    end: chapter.end() / 1000,
+                    start: chapter.start() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64,
+                    end: chapter.end() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64,
                 });
             }
         }
@@ -80,7 +81,7 @@ pub fn init_dir(folder: &Path) -> io::Result<Books> {
             let entry = entry?;
             let path = entry.path();
             if let Some(ext) = &path.extension() {
-                if ext.eq(&OsStr::new("m4b")) {
+                if ext.eq(&OsStr::new("m4b")) || ext.eq(&OsStr::new("3gp")) {
                     if let Some(file_str) = path.to_str() {
                         let book = get_book(&file_str);
                         let mut found = false;

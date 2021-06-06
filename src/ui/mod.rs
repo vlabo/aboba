@@ -9,10 +9,10 @@ use books_view::*;
 use chapters_view::*;
 use player_view::*;
 
-use std::cell::Cell;
+// use std::cell::Cell;
 use std::rc::Rc;
 
-use super::filemanager::{self, Book, Books};
+use super::filemanager::{self};//, Book, Books};
 
 pub struct Ui {
     window: gtk::Window,
@@ -87,11 +87,11 @@ impl Ui {
         };
     }
 
-    pub fn setup_open_button(&self, get_control: &'static dyn Fn(&str) -> super::audio::Control) {
+    pub fn setup_open_button(&self) {
         let open_button = &self.open_button;
         let window = &self.window;
         let books = self.books_view.clone();
-
+        /*
         open_button.connect_clicked(glib::clone!(@weak window => move |_| {
 
             let file_chooser = gtk::FileChooserDialog::new(
@@ -117,21 +117,23 @@ impl Ui {
             }));
 
             file_chooser.show_all();
-        }));
+        }));*/
 
-        let stack = &self.stack;
-        let chapters_view = self.chapters_view.clone();
-        let player_view = self.player_view.clone();
-        self.books_view.connect_book_selected(
-            glib::clone!(@weak stack, @strong chapters_view, @strong player_view => move |book| {
-                println!("{}", &book.title);
-                let control = get_control(&book.file);
-                let _ = control.is_playing();
-                chapters_view.set_chapters(&book.chapters, control.clone());
-                player_view.initialize_book(book, control);
-                stack.set_visible_child(player_view.get_container());
-            }),
-        );
+        if let Ok(list) = super::filemanager::init_dir(std::path::Path::new("/home/vladimir/Audiobooks")) {
+            books.add_book_list(list);
+
+            let stack = &self.stack;
+            let chapters_view = self.chapters_view.clone();
+            let player_view = self.player_view.clone();
+            self.books_view.connect_book_selected(
+                glib::clone!(@weak stack, @strong chapters_view, @strong player_view => move |book| {
+                    println!("{}", &book.title);
+                    chapters_view.set_chapters(&book.chapters, player_view.get_control());
+                    player_view.initialize_book(book);
+                    stack.set_visible_child(player_view.get_container());
+                }),
+            );
+        }
 
         let player_view = self.player_view.clone();
         let books = self.books_view.clone();
