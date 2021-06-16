@@ -11,8 +11,11 @@ use std::rc::Rc;
 pub struct PlayerView {
     container: gtk::Box,
     chapters_button: gtk::Button,
+    book_list_button: gtk::Button,
+    speed_button: gtk::Button,
     play_button: gtk::Button,
     seek_back_button: gtk::Button,
+    seek_forward_button: gtk::Button,
     book_title: gtk::Label,
     chapter_title: gtk::Label,
     progress_bar: gtk::Scale,
@@ -52,24 +55,43 @@ impl PlayerView {
 
         // Button Containers
         let control_box = gtk::Box::new(gtk::Orientation::Vertical, 3);
-        let button_box = gtk::Box::new(gtk::Orientation::Horizontal, 3);
-        control_box.add(&button_box);
         container.add(&control_box);
 
+        let button_play_box = gtk::Box::new(gtk::Orientation::Horizontal, 3);
+        control_box.add(&button_play_box);
+
+        let button_navigation_box = gtk::Box::new(gtk::Orientation::Horizontal, 3);
+        control_box.add(&button_navigation_box);
+
         // Seek back Button
-        let seek_back_button = gtk::Button::with_label("< 30s");
+        let seek_back_button = gtk::Button::with_label("<");
         seek_back_button.set_hexpand(true);
-        button_box.add(&seek_back_button);
+        button_play_box.add(&seek_back_button);
 
         // Play Button
         let play_button = gtk::Button::with_label("Play");
         play_button.set_hexpand(true);
-        button_box.add(&play_button);
+        button_play_box.add(&play_button);
+
+        // Seek forward Button
+        let seek_forward_button = gtk::Button::with_label(">");
+        seek_forward_button.set_hexpand(true);
+        button_play_box.add(&seek_forward_button);
+
+        // Books Button
+        let book_list_button = gtk::Button::with_label("Books");
+        book_list_button.set_hexpand(true);
+        button_navigation_box.add(&book_list_button);
+
+        // Speed Button
+        let speed_button = gtk::Button::with_label("Speed");
+        speed_button.set_hexpand(true);
+        button_navigation_box.add(&speed_button);
 
         // Chapters Button
-        let chapters_button = gtk::Button::with_label("Chapters");
+        let chapters_button = gtk::Button::with_label("Cha");
         chapters_button.set_hexpand(true);
-        button_box.add(&chapters_button);
+        button_navigation_box.add(&chapters_button);
 
         // Objects
         let book_info = Rc::new(RefCell::new(Book::default()));
@@ -77,9 +99,12 @@ impl PlayerView {
 
         return Self {
             container,
+            book_list_button,
             chapters_button,
+            speed_button,
             play_button,
             seek_back_button,
+            seek_forward_button,
             book_title,
             chapter_title,
             progress_bar,
