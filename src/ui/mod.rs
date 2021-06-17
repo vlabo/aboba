@@ -9,10 +9,9 @@ use books_view::*;
 use chapters_view::*;
 use player_view::*;
 
-// use std::cell::Cell;
 use std::rc::Rc;
 
-use super::file_manager::{self};//, Book, Books};
+use super::file_manager::{self};
 
 pub struct Ui {
     window: gtk::Window,
@@ -42,15 +41,12 @@ impl Ui {
 
         // Player
         let player_view = PlayerView::new();
-        let player_container = player_view.get_container();
 
         // Chapters
         let chapters_view = ChaptersView::new();
-        let chapters_container = chapters_view.get_container();
 
         // Books list
         let books_view = BooksView::new();
-        let _books_container = books_view.get_container();
 
         // GUI Stack
         let stack = gtk::Stack::new();
@@ -61,20 +57,9 @@ impl Ui {
         stack.add(chapters_view.get_container());
         window.add(&stack);
 
-        // Events
-        chapters_view.set_back_fn(
-            glib::clone!(@weak stack, @weak player_container => move |_| {
-                stack.set_visible_child(&player_container);
-            }),
-        );
+        // Create object
 
-        player_view.set_open_chapters_fn(
-            glib::clone!(@weak stack, @weak chapters_container => move |_| {
-                stack.set_visible_child(&chapters_container);
-            }),
-        );
-
-        return Self {
+        let ui = Self {
             window,
             books_view: Rc::new(books_view),
             player_view: Rc::new(player_view),
@@ -82,6 +67,47 @@ impl Ui {
             open_button,
             stack,
         };
+
+        // Events
+        let stack = &ui.stack;
+        let player_container = ui.player_view.get_container();
+        ui.chapters_view.set_back_fn(
+            glib::clone!(@weak stack, @weak player_container => move |_| {
+                stack.set_visible_child(&player_container);
+            }),
+        );
+
+        let stack = &ui.stack;
+        let chapters_container = ui.chapters_view.get_container();
+        ui.player_view.set_open_chapters_fn(
+            glib::clone!(@weak stack, @weak chapters_container => move |_| {
+                stack.set_visible_child(&chapters_container);
+            }),
+        );
+
+        let stack = &ui.stack;
+        let books_view = &ui.books_view;
+        let player_view = &ui.player_view;
+        let books_container = ui.books_view.get_container();
+        ui.player_view.set_open_books_list_fn(
+            glib::clone!(@weak stack, @weak books_container, @weak books_view, @weak player_view => move |_| {
+                if let Some(mut books) = books_view.get_books() {
+                    if let Some(book) = player_view.get_book() {
+                        for i in 0..books.list.len() {
+                            if books.list[i].title.eq(&book.title) {
+                                books.list[i] = book;
+                                break;
+                            }
+                        }
+                        player_view.drop_book();
+                        file_manager::save_json(&books);
+                    }
+                }
+                stack.set_visible_child(&books_container);
+            }),
+        );
+
+        return ui;
     }
 
     pub fn setup_open_button(&self) {
@@ -143,7 +169,6 @@ impl Ui {
                 if let Some(book) = player_view.get_book() {
                     for i in 0..books.list.len() {
                         if books.list[i].title.eq(&book.title) {
-                            println!("{}", &book.time);
                             books.list[i] = book;
                             break;
                         }

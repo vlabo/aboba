@@ -14,7 +14,7 @@ pub struct PlayerView {
     book_list_button: gtk::Button,
     speed_button: gtk::Button,
     play_button: gtk::Button,
-    seek_back_button: gtk::Button,
+    seek_backward_button: gtk::Button,
     seek_forward_button: gtk::Button,
     book_title: gtk::Label,
     chapter_title: gtk::Label,
@@ -64,9 +64,9 @@ impl PlayerView {
         control_box.add(&button_navigation_box);
 
         // Seek back Button
-        let seek_back_button = gtk::Button::with_label("<");
-        seek_back_button.set_hexpand(true);
-        button_play_box.add(&seek_back_button);
+        let seek_backward_button = gtk::Button::with_label("<");
+        seek_backward_button.set_hexpand(true);
+        button_play_box.add(&seek_backward_button);
 
         // Play Button
         let play_button = gtk::Button::with_label("Play");
@@ -89,7 +89,7 @@ impl PlayerView {
         button_navigation_box.add(&speed_button);
 
         // Chapters Button
-        let chapters_button = gtk::Button::with_label("Cha");
+        let chapters_button = gtk::Button::with_label("Chapters");
         chapters_button.set_hexpand(true);
         button_navigation_box.add(&chapters_button);
 
@@ -103,7 +103,7 @@ impl PlayerView {
             chapters_button,
             speed_button,
             play_button,
-            seek_back_button,
+            seek_backward_button,
             seek_forward_button,
             book_title,
             chapter_title,
@@ -118,6 +118,10 @@ impl PlayerView {
         self.chapters_button.connect_clicked(f);
     }
 
+    pub fn set_open_books_list_fn<F: Fn(&gtk::Button) + 'static>(&self, f: F) {
+        self.book_list_button.connect_clicked(f);
+    }
+
     pub fn get_container(&self) -> &gtk::Box {
         return &self.container;
     }
@@ -128,7 +132,9 @@ impl PlayerView {
         self.book_info.replace(book);
         self.init_play_button();
         self.init_progress_bar();
-        self.init_seek_back_button();
+        self.init_seek_buttons();
+        self.init_speed_button();
+        println!("Initialized");
     }
 
     fn init_play_button(&self) {
@@ -158,7 +164,12 @@ impl PlayerView {
         if let Some(i) = Self::get_current_chapter(&book.borrow().chapters, book.borrow().time) {
             let chapter = &book.borrow().chapters[i];
             chapter_title.set_label(&chapter.title);
-            Self::update_progress_bar(&progress_bar, &progress_label, book.borrow().time - chapter.start, chapter.duration);
+            Self::update_progress_bar(
+                &progress_bar,
+                &progress_label,
+                book.borrow().time - chapter.start,
+                chapter.duration,
+            );
         }
 
         glib::timeout_add_local(
@@ -199,22 +210,72 @@ impl PlayerView {
         });
     }
 
-    fn update_progress_bar(progress_bar: &gtk::Scale, progress_label: &gtk::Label, position: i64, chapter_duration: i64) {
+    fn update_progress_bar(
+        progress_bar: &gtk::Scale,
+        progress_label: &gtk::Label,
+        position: i64,
+        chapter_duration: i64,
+    ) {
         progress_bar.set_range(0.0, chapter_duration as f64);
         progress_bar.set_value(position as f64);
         progress_label.set_text(&util::time_int_to_string(position));
     }
 
-    fn init_seek_back_button(&self) {
+    fn init_seek_buttons(&self) {
+
+        // Seek backward
         let player = self.player.clone();
-        self.seek_back_button.connect_clicked(move |_| {
-            let position = player.get_position();
+        let book_info = self.book_info.clone();
+        let chapter_title = &self.chapter_title;
+        let progress_bar = &self.progress_bar;
+        let progress_label = &self.progress_label;
+
+        self.seek_backward_button.connect_clicked(glib::clone!(@weak chapter_title, @weak progress_bar, @weak progress_label => move |_| {
+            let mut position = player.get_position();
             if position > 30 {
-                player.set_position(position - 30);
+                position = position - 30;
             } else {
-                player.set_position(0);
+                position = 0;
             }
-        });
+
+            let mut book_info = book_info.borrow_mut();
+            if let Some(i) = Self::get_current_chapter(&book_info.chapters, position) {
+                let chapter = &book_info.chapters[i];
+                chapter_title.set_label(&chapter.title);
+                Self::update_progress_bar(&progress_bar, &progress_label, position - chapter.start, chapter.duration);
+            }
+            player.set_position(position);
+            book_info.time = position;
+        }));
+
+        // Seek forward
+        let player = self.player.clone();
+        let book_info = self.book_info.clone();
+        let chapter_title = &self.chapter_title;
+        let progress_bar = &self.progress_bar;
+        let progress_label = &self.progress_label;
+
+        self.seek_forward_button.connect_clicked(glib::clone!(@weak chapter_title, @weak progress_bar, @weak progress_label => move |_| {
+            let mut position = player.get_position();
+            if position < player.get_duration() - 30 {
+                position = position + 30;
+            } else {
+                position = player.get_duration();
+            }
+
+            let mut book_info = book_info.borrow_mut();
+            if let Some(i) = Self::get_current_chapter(&book_info.chapters, position) {
+                let chapter = &book_info.chapters[i];
+                chapter_title.set_label(&chapter.title);
+                Self::update_progress_bar(&progress_bar, &progress_label, position - chapter.start, chapter.duration);
+            }
+            player.set_position(position);
+            book_info.time = position;
+        }));
+    }
+
+    fn init_speed_button(&self) {
+        self.speed_button.connect_clicked(|_| {});
     }
 
     fn get_current_chapter(chapters: &Vec<Chapter>, position: i64) -> Option<usize> {
@@ -235,12 +296,25 @@ impl PlayerView {
         return Some(self.book_info.borrow().clone());
     }
 
+    pub fn drop_book(&self) {
+        if self.player.is_playing() {
+            self.player.pause();
+            self.book_info.borrow_mut().time = self.player.get_position();
+            self.play_button.set_label("Play");
+        }
+    }
+
     pub fn set_position(&self, position: i64) {
         let mut book_info = self.book_info.borrow_mut();
         if let Some(i) = Self::get_current_chapter(&book_info.chapters, position) {
             let chapter = &book_info.chapters[i];
             self.chapter_title.set_label(&chapter.title);
-            Self::update_progress_bar(&self.progress_bar, &self.progress_label, position - chapter.start, chapter.duration);
+            Self::update_progress_bar(
+                &self.progress_bar,
+                &self.progress_label,
+                position - chapter.start,
+                chapter.duration,
+            );
         }
         self.player.set_position(position);
         book_info.time = position;
