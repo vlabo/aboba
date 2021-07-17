@@ -25,9 +25,7 @@ pub struct Ui {
 impl Ui {
     pub fn build_ui(application: &gtk::Application) -> Self {
         let builder = gtk::WindowBuilder::new();
-        let window = builder
-            .application(application)
-            .build();
+        let window = builder.application(application).build();
 
         window.set_border_width(0);
         window.set_position(gtk::WindowPosition::Center);

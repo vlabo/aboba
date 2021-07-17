@@ -18,7 +18,8 @@ impl ChaptersView {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 2);
 
         // Scrolled window
-        let scrolled_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+        let scrolled_window =
+            gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         scrolled_window.set_shadow_type(gtk::ShadowType::EtchedIn);
         scrolled_window.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
         scrolled_window.set_vexpand(true);

@@ -222,7 +222,6 @@ impl PlayerView {
     }
 
     fn init_seek_buttons(&self) {
-
         // Seek backward
         let player = self.player.clone();
         let book_info = self.book_info.clone();

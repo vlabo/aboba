@@ -28,34 +28,34 @@ pub struct Books {
 }
 
 pub fn get_book(file: &str) -> Book {
-    let mut chapters = Vec::new();
+    let chapters = Vec::new();
     let path = Path::new(file);
-    match ffmpeg::format::input(&file) {
-        Ok(ictx) => {
-            for chapter in ictx.chapters() {
-                let mut title = match chapter.metadata().get("title") {
-                    Some(title) => String::from(title),
-                    None => String::new(),
-                };
+    // match ffmpeg::format::input(&file) {
+    //     Ok(ictx) => {
+    //         for chapter in ictx.chapters() {
+    //             let mut title = match chapter.metadata().get("title") {
+    //                 Some(title) => String::from(title),
+    //                 None => String::new(),
+    //             };
 
-                if title.trim().len() == 0 {
-                    title = format!("Chapter {}", chapter.index());
-                }
+    //             if title.trim().len() == 0 {
+    //                 title = format!("Chapter {}", chapter.index());
+    //             }
 
-                let start = chapter.start() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
-                let end = chapter.end() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
+    //             let start = chapter.start() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
+    //             let end = chapter.end() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
 
-                chapters.push(Chapter {
-                    title: title,
-                    start: start,
-                    end: end,
-                    duration: end - start,
-                });
-            }
-        }
+    //             chapters.push(Chapter {
+    //                 title: title,
+    //                 start: start,
+    //                 end: end,
+    //                 duration: end - start,
+    //             });
+    //         }
+    //     }
 
-        _ => {}
-    }
+    //     _ => {}
+    // }
     let mut title: &str = "";
     if let Some(file_stem) = path.file_stem() {
         if let Some(file_name) = file_stem.to_str() {
@@ -86,7 +86,10 @@ pub fn init_dir(folder: &Path) -> io::Result<Books> {
             let entry = entry?;
             let path = entry.path();
             if let Some(ext) = &path.extension() {
-                if ext.eq(&OsStr::new("m4a")) || ext.eq(&OsStr::new("m4b")) || ext.eq(&OsStr::new("3gp")) {
+                if ext.eq(&OsStr::new("m4a"))
+                    || ext.eq(&OsStr::new("m4b"))
+                    || ext.eq(&OsStr::new("3gp"))
+                {
                     if let Some(file_str) = path.to_str() {
                         let book = get_book(&file_str);
                         let mut found = false;

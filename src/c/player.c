@@ -51,4 +51,3 @@ void agst_seek(void *gst_player, int64_t sec) {
         printf("Seek failed!\n");
     }
 }
-

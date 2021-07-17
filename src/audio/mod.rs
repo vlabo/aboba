@@ -20,7 +20,9 @@ impl Player {
     }
 
     pub fn set_file(&self, path: &Path) {
-        let cstring = CString::new("file://".to_owned() + path.canonicalize().unwrap().to_str().unwrap()).unwrap();
+        let cstring =
+            CString::new("file://".to_owned() + path.canonicalize().unwrap().to_str().unwrap())
+                .unwrap();
         unsafe { gstreamer::agst_set_file(self.inner, cstring.as_ptr()) };
         self.play();
         self.pause();

@@ -17,7 +17,8 @@ impl BooksView {
         let container = gtk::Box::new(gtk::Orientation::Vertical, 2);
 
         // Window For Scrolling
-        let scrolled_window = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+        let scrolled_window =
+            gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         scrolled_window.set_shadow_type(gtk::ShadowType::EtchedIn);
         scrolled_window.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
         scrolled_window.set_vexpand(true);
@@ -73,14 +74,15 @@ impl BooksView {
     pub fn connect_book_selected<F: Fn(Book) + 'static>(&self, f: F) {
         let book_info_list = &self.book_info_list;
         let book_list = &self.book_list;
-        self.play_button
-            .connect_clicked(glib::clone!(@weak book_info_list, @weak book_list => move |_| {
+        self.play_button.connect_clicked(
+            glib::clone!(@weak book_info_list, @weak book_list => move |_| {
                 if let Some(row) = book_list.selected_row() {
                     if let Some(books) = book_info_list.take() {
                         f(books.list[row.index() as usize].clone());
                         book_info_list.set(Some(books));
                     }
                 }
-            }));
+            }),
+        );
     }
 }

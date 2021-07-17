@@ -1,22 +1,22 @@
 fn main() {
-    #[cfg(target_arch = "x86_64")]
-    cc::Build::new()
-        .file("src/c/player.c")
-        .flag("-I/usr/include/gstreamer-1.0")
-        .flag("-I/usr/include/x86_64-linux-gnu")
-        .flag("-I/usr/include/glib-2.0")
-        .flag("-I/usr/lib/x86_64-linux-gnu/glib-2.0/include")
-        .compile("player");
+    let gstreamer = pkg_config::Config::new().probe("gstreamer-1.0").unwrap();
 
-    #[cfg(target_arch = "aarch64")]
-    cc::Build::new()
-        .file("src/c/player.c")
-        .flag("-I/usr/include/gstreamer-1.0")
-        .flag("-I/usr/include/aarch64-linux-gnu")
-        .flag("-I/usr/include/glib-2.0")
-        .flag("-I/usr/lib/aarch64-linux-gnu/glib-2.0/include")
-        .compile("player");
+    let src = ["src/c/player.c"];
 
-        println!("cargo:rustc-link-lib=dylib=gstreamer-1.0");
+    let mut builder = cc::Build::new();
+    let build = builder.files(src.iter());
+
+    for inc in gstreamer.include_paths {
+        build.include(inc);
+    }
+
+    build.compile("player");
+
+    for ipath in gstreamer.link_paths {
+        println!("cargo:rustc-link-search=dylib={}", ipath.to_str().unwrap());
+    }
+
+    for lib in gstreamer.libs {
+        println!("cargo:rustc-link-lib=dylib={}", lib.as_str());
+    }
 }
-
