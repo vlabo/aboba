@@ -4,9 +4,10 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 
-use serde_derive::{Deserialize, Serialize};
+use mp4ameta::Tag;
+use serde_json::{Value, json};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Default, Debug)]
 pub struct Chapter {
     pub title: String,
     pub start: i64,
@@ -14,7 +15,7 @@ pub struct Chapter {
     pub duration: i64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct Book {
     pub file: String,
     pub title: String,
@@ -28,51 +29,51 @@ pub struct Books {
 }
 
 pub fn get_book(file: &str) -> Book {
-    let chapters = Vec::new();
+    let mut chapters = Vec::new();
     let path = Path::new(file);
-    // match ffmpeg::format::input(&file) {
-    //     Ok(ictx) => {
-    //         for chapter in ictx.chapters() {
-    //             let mut title = match chapter.metadata().get("title") {
-    //                 Some(title) => String::from(title),
-    //                 None => String::new(),
-    //             };
+    let mut title: String = "Unknown".to_owned();
 
-    //             if title.trim().len() == 0 {
-    //                 title = format!("Chapter {}", chapter.index());
-    //             }
+    let tag = Tag::read_from_path(file);
 
-    //             let start = chapter.start() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
-    //             let end = chapter.end() * chapter.time_base().0 as i64 / chapter.time_base().1 as i64;
+    if let Ok(tag) = tag {
+    	for chapter in tag.chapters() {
+    		chapters.push(Chapter {
+    			title: chapter.title.to_string(),
+    			start: chapter.start.as_secs() as i64,
+    			end: chapter.start.as_secs() as i64 + chapter.duration.as_secs() as i64,
+    			duration: chapter.duration.as_secs() as i64,
+    		});
+    	}
 
-    //             chapters.push(Chapter {
-    //                 title: title,
-    //                 start: start,
-    //                 end: end,
-    //                 duration: end - start,
-    //             });
-    //         }
-    //     }
+        if chapters.is_empty() {
+            let duration = tag.duration().unwrap().as_secs() as i64;
+            chapters.push(Chapter {
+                title: "Chapter".to_string(),
+                start: 0,
+                end: duration,
+                duration: duration,
+            });
+        }
 
-    //     _ => {}
-    // }
-    let mut title: &str = "";
-    if let Some(file_stem) = path.file_stem() {
-        if let Some(file_name) = file_stem.to_str() {
-            title = file_name;
+        if let Some(tag_title) = tag.title() {
+            title = tag_title.to_string();
+        } else if let Some(file_stem) = path.file_stem() {
+            if let Some(file_name) = file_stem.to_str() {
+                title = file_name.to_owned();
+            }
         }
     }
-
+    
     return Book {
         file: file.to_owned(),
-        title: title.to_owned(),
+        title: title,
         chapters: chapters,
         time: 0,
     };
 }
 
 pub fn init_dir(folder: &Path) -> io::Result<Books> {
-    let mut json_books: Vec<Book> = Vec::new();
+    let mut json_books = Value::Null;
 
     let mut books: Vec<Book> = Vec::new();
     let json_file = folder.join("books.json");
@@ -91,17 +92,19 @@ pub fn init_dir(folder: &Path) -> io::Result<Books> {
                     || ext.eq(&OsStr::new("3gp"))
                 {
                     if let Some(file_str) = path.to_str() {
-                        let book = get_book(&file_str);
-                        let mut found = false;
-                        for p_book in &json_books {
-                            if p_book.file.eq(&book.file) {
-                                books.push(p_book.clone());
-                                found = true;
+                        let mut book = get_book(&file_str);
+                    
+                        if let Value::Array(ref array) = json_books {
+                            for json_book in array {
+                                if json_book["file"].eq(&book.file) {
+                                    if let Value::Number(time) = &json_book["time"] {
+                                        book.time = time.as_i64().unwrap_or(0);
+                                    }
+                                }
                             }
                         }
-                        if !found {
-                            books.push(book);
-                        }
+                        
+                        books.push(book);
                     }
                 }
             }
@@ -118,9 +121,17 @@ pub fn init_dir(folder: &Path) -> io::Result<Books> {
 
 pub fn save_json(books: &Books) {
     let json_file = Path::new(&books.path).join("books.json");
-    let books = &books.list;
+    let mut values: Vec<Value> = Vec::new();
+
+    for book in &books.list {
+        values.push(json!({
+            "file": book.file,
+            "time": book.time,
+        }));
+    }
+    let json_books = Value::Array(values);
+
     if let Ok(mut file) = fs::File::create(json_file) {
-        let serialized = serde_json::to_string(&books).unwrap();
-        let _ = file.write_all(serialized.as_bytes());
+        let _ = file.write_all(json_books.to_string().as_bytes());
     }
 }

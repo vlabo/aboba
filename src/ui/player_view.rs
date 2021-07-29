@@ -45,12 +45,14 @@ impl PlayerView {
         let book_title = gtk::Label::new(Some("Title"));
         book_title.set_hexpand(true);
         book_title.set_vexpand(true);
+        book_title.set_line_wrap(true);
         container.add(&book_title);
 
         // Chapter Title
         let chapter_title = gtk::Label::new(Some("Chapter"));
         chapter_title.set_hexpand(true);
         chapter_title.set_vexpand(true);
+        chapter_title.set_line_wrap(true);
         container.add(&chapter_title);
 
         // Button Containers
