@@ -1,184 +1,190 @@
+mod util;
+
+use core::time::Duration;
+use std::rc::Rc;
 use gtk::glib;
 use gtk::prelude::*;
 
-mod books_view;
-mod chapters_view;
-mod player_view;
-
-use books_view::*;
-use chapters_view::*;
-use player_view::*;
-
-use std::rc::Rc;
-
-use super::file_manager::{self};
+use super::audio::Player;
 
 pub struct Ui {
     window: gtk::Window,
-    books_view: Rc<BooksView>,
-    player_view: Rc<PlayerView>,
-    chapters_view: Rc<ChaptersView>,
-    open_button: gtk::Button,
-    stack: gtk::Stack,
 }
 
 impl Ui {
     pub fn build_ui(application: &gtk::Application) -> Self {
-        let builder = gtk::WindowBuilder::new();
-        let window = builder.application(application).build();
-
-        window.set_border_width(0);
-        window.set_position(gtk::WindowPosition::Center);
-
-        // Header
-        let bar = gtk::HeaderBar::new();
-        bar.set_show_close_button(true);
-        let open_button = gtk::Button::with_label("Open");
-        bar.add(&open_button);
-        window.set_titlebar(Some(&bar));
-
-        // Player
-        let player_view = PlayerView::new();
-
-        // Chapters
-        let chapters_view = ChaptersView::new();
-
-        // Books list
-        let books_view = BooksView::new();
-
-        // GUI Stack
-        let stack = gtk::Stack::new();
-        stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
-
-        stack.add(books_view.get_container());
-        stack.add(player_view.get_container());
-        stack.add(chapters_view.get_container());
-        window.add(&stack);
-
-        // Create object
-
-        let ui = Self {
-            window,
-            books_view: Rc::new(books_view),
-            player_view: Rc::new(player_view),
-            chapters_view: Rc::new(chapters_view),
-            open_button,
-            stack,
+        
+        let player = if let Some(user_dirs) = directories::UserDirs::new() {
+            Rc::new(Player::new(user_dirs.home_dir().join("Audiobooks").as_path()).unwrap())
+        } else {
+            panic!("Missing Audiobooks folder");
         };
 
-        // Events
-        let stack = &ui.stack;
-        let player_container = ui.player_view.get_container();
-        ui.chapters_view.set_back_fn(
-            glib::clone!(@weak stack, @weak player_container => move |_| {
-                stack.set_visible_child(&player_container);
-            }),
-        );
+        let ui_xml = include_str!("ui.glade");
 
-        let stack = &ui.stack;
-        let chapters_container = ui.chapters_view.get_container();
-        ui.player_view.set_open_chapters_fn(
-            glib::clone!(@weak stack, @weak chapters_container => move |_| {
-                stack.set_visible_child(&chapters_container);
-            }),
-        );
+        let builder = gtk::Builder::from_string(ui_xml);
+        let window: gtk::Window = builder.object("MainWindow").expect("Couldn't get MainWindow");
+        window.set_application(Some(application));
 
-        let stack = &ui.stack;
-        let books_view = &ui.books_view;
-        let player_view = &ui.player_view;
-        let books_container = ui.books_view.get_container();
-        ui.player_view.set_open_books_list_fn(
-            glib::clone!(@weak stack, @weak books_container, @weak books_view, @weak player_view => move |_| {
-                if let Some(mut books) = books_view.get_books() {
-                    if let Some(book) = player_view.get_book() {
-                        for i in 0..books.list.len() {
-                            if books.list[i].title.eq(&book.title) {
-                                books.list[i] = book;
-                                break;
-                            }
-                        }
-                        player_view.drop_book();
-                        file_manager::save_json(&books);
-                    }
-                }
-                stack.set_visible_child(&books_container);
-            }),
-        );
+        // Main Containers
+        let main_stack: gtk::Stack = builder.object("MainStack").expect("Couldn't get MainStack");
+        let book_list_container: gtk::Box = builder.object("BookListContainer").expect("Couldn't get BookListContainer");
+        let player_container: gtk::Box = builder.object("PlayerContainer").expect("Couldn't get PlayerContainer");
+        let chapters_container: gtk::Box = builder.object("ChaptersContainer").expect("Couldn't get ChaptersContainer");
 
-        return ui;
-    }
+        // Book List
+        let book_list: gtk::ListBox = builder.object("BookList").expect("Couldn't get BookList");
+        let select_book_button: gtk::Button = builder.object("PlayBookButton").expect("Couldn't get PlayBookButton");
 
-    pub fn setup_open_button(&self) {
-        let open_button = &self.open_button;
-        let window = &self.window;
-        let books_view = self.books_view.clone();
+        // Player
+        let player_books_button: gtk::Button = builder.object("PlayerBooksButton").expect("Couldn't get PlayerBooksButton");
+        let player_chapters_button: gtk::Button = builder.object("PlayerChaptersButton").expect("Couldn't get PlayerChaptersButton");
+        let player_play_button: gtk::Button = builder.object("PlayButton").expect("Couldn't get PlayButton");
+        let player_left_button: gtk::Button = builder.object("PlayerLeftButton").expect("Couldn't get PlayerLeftButton");
+        let player_right_button: gtk::Button = builder.object("PlayerRightButton").expect("Couldn't get PlayerRightButton");
 
-        open_button.connect_clicked(glib::clone!(@weak window => move |_| {
+        let player_progress_bar: gtk::Scale = builder.object("PlayerProgressBar").expect("Couldn't get PlayerProgressBar");
+        let player_progress_label: gtk::Label = builder.object("PlayerProgressLabel").expect("Couldn't get PlayerProgressLabel");
 
-            let file_chooser = gtk::FileChooserDialog::new(
-                Some("Open"),
-                Some(&window),
-                gtk::FileChooserAction::SelectFolder,
-            );
-            file_chooser.add_buttons(&[
-                ("Select", gtk::ResponseType::Ok),
-                ("Cancel", gtk::ResponseType::Cancel),
-            ]);
-            let books_view = books_view.clone();
+        let player_title_label: gtk::Label = builder.object("PlayerTitleLabel").expect("Couldn't get PlayerTitleLabel");
+        let player_chapter_label: gtk::Label = builder.object("PlayerChapterLabel").expect("Couldn't get PlayerChapterLabel");
 
-            file_chooser.connect_response(glib::clone!(@strong books_view => move |file_chooser, response| {
-                if response == gtk::ResponseType::Ok {
-                    let dir = file_chooser.filename().expect("Couldn't get filename");
-                    if let Ok(list) = file_manager::init_dir(dir.as_path()) {
-                        books_view.add_book_list(list);
-                    }
 
-                }
-                file_chooser.close();
-            }));
+        // Chapters
+        let chapters_back_button: gtk::Button = builder.object("ChaptersBackButton").expect("Couldn't get ChaptersBackButton");
+        let chapters_play_button: gtk::Button = builder.object("ChaptersPlayButton").expect("Couldn't get ChaptersPlayButton");
+        let chapters_list: gtk::ListBox = builder.object("ChaptersList").expect("Couldn't get ChaptersList");
 
-            file_chooser.show_all();
+        // Book List
+        select_book_button.connect_clicked(glib::clone!(@weak main_stack, @weak player_container, @weak book_list, @strong player => move |_| {
+            if let Some(row) = book_list.selected_row() {
+                player.select_book(row.index() as usize);
+                main_stack.set_visible_child(&player_container);
+            }
         }));
 
-        let books = self.books_view.clone();
-        if let Some(user_dirs) = directories::UserDirs::new() {
-            let default_dir = user_dirs.home_dir().join("Audiobooks");
-            if let Ok(list) = file_manager::init_dir(&default_dir.as_path()) {
-                books.add_book_list(list);
-            }
+        for title in &player.get_titles() {
+            let label = gtk::Label::new(Some(title));
+            label.set_wrap(true);
+            book_list.add(&label);
+            label.show();
         }
 
-        let stack = &self.stack;
-        let chapters_view = self.chapters_view.clone();
-        let player_view = self.player_view.clone();
-        self.books_view.connect_book_selected(
-            glib::clone!(@weak stack, @strong chapters_view, @strong player_view => move |book| {
-                println!("{}", &book.title);
-                chapters_view.set_chapters(&book.chapters, player_view.clone());
-                player_view.initialize_book(book);
-                stack.set_visible_child(player_view.get_container());
+        // Player
+        player_books_button.connect_clicked(glib::clone!(@weak main_stack, @weak book_list_container, @strong player => move |_| {
+            player.pause();
+            player.close_book();
+            main_stack.set_visible_child(&book_list_container);
+        }));
+
+        player_chapters_button.connect_clicked(glib::clone!(@weak main_stack, @weak chapters_container, @weak chapters_list, @strong player => move |_| {
+            if let Some(chapters) = player.get_chapters() {
+                for child in chapters_list.children() {
+                    chapters_list.remove(&child);
+                }
+                for (title, duration) in chapters {
+                    // Container for single chapter
+                    let container = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+                    container.set_hexpand(true);
+                    chapters_list.add(&container);
+
+                    // Chapter Name
+                    let label_name = gtk::Label::new(Some(&title));
+                    label_name.set_halign(gtk::Align::Start);
+                    label_name.set_hexpand(true);
+                    label_name.set_line_wrap(true);
+                    container.add(&label_name);
+
+                    // Chapter duration
+                    let time = util::time_int_to_string(duration);
+                    let label_duration = gtk::Label::new(Some(&time.to_string()));
+                    label_duration.set_halign(gtk::Align::End);
+                    label_duration.set_hexpand(true);
+                    container.add(&label_duration);
+
+                    container.show_all();
+                }
+            }
+
+            main_stack.set_visible_child(&chapters_container);
+        }));
+
+        player_play_button.connect_clicked(glib::clone!(@weak player_play_button, @strong player => move |_| {
+            if player.is_playing() {
+                player_play_button.set_label("Play");
+                player.pause();
+            } else {
+                player_play_button.set_label("Pause");
+                player.play();
+            }
+        }));
+
+        player_left_button.connect_clicked(glib::clone!(@strong player => move |_| {
+            let position = player.get_position() - 30;
+            player.set_position(position);
+        }));
+
+        player_right_button.connect_clicked(glib::clone!(@strong player => move |_| {
+            let position = player.get_position() + 30;
+            player.set_position(position);
+        }));
+
+        // Chapters
+
+        chapters_back_button.connect_clicked(glib::clone!(@weak main_stack, @weak player_container => move |_| {
+            main_stack.set_visible_child(&player_container);
+        }));
+
+        chapters_play_button.connect_clicked(glib::clone!(@weak main_stack, @weak player_container, @weak chapters_list, @strong player => move |_| {
+            if let Some(row) = chapters_list.selected_row() {
+                player.set_chapter(row.index() as usize);
+            }
+            main_stack.set_visible_child(&player_container);
+        }));
+
+
+        glib::timeout_add_local(
+            Duration::from_millis(500),
+            glib::clone!(@weak player_progress_bar, @weak player_progress_label, @weak player_title_label, @weak player_chapter_label, @strong player => @default-return glib::Continue(false), move || {
+                if let Some((duration, position)) = player.get_current_chapter_duration_and_position() {
+                    player_progress_bar.set_range(0.0, duration as f64);
+                    player_progress_bar.set_value(position as f64);
+                    let lable_text = util::time_int_to_string(position) + "/" + &util::time_int_to_string(duration);
+                    player_progress_label.set_text(&lable_text);
+
+                    if let Some(title) = player.get_current_book_title() {
+                        player_title_label.set_text(&title);
+                    } else {
+                        player_title_label.set_text("");
+                    }
+
+                    if let Some(title) = player.get_current_chapter_title() {
+                        player_chapter_label.set_text(&title);
+                    } else {
+                        player_chapter_label.set_text("");
+                    }
+                }
+
+                glib::Continue(true)
             }),
         );
 
-        let player_view = self.player_view.clone();
-        let books_view = self.books_view.clone();
-        window.connect_delete_event(glib::clone!(@strong books_view, @strong player_view => @default-return gtk::Inhabit(false), move |_, _| {
-            if let Some(mut books) = books_view.get_books() {
-                if let Some(book) = player_view.get_book() {
-                    for i in 0..books.list.len() {
-                        if books.list[i].title.eq(&book.title) {
-                            books.list[i] = book;
-                            break;
-                        }
-                    }
-                    file_manager::save_json(&books);
-                }
+        player_progress_bar.connect_change_value(glib::clone!(@strong player => @default-return gtk::Inhibit(false), move |_, _, value| {
+            if let Some((start, _)) = player.get_current_chapter_start_and_end() {
+                let new_position = start + value as i64;
+                player.set_position(new_position);
             }
+
             gtk::Inhibit(false)
         }));
+
+        return Ui {
+            window
+        };
     }
 
+
     pub fn run(&self) {
-        self.window.show_all();
+        self.window.show();
     }
 }

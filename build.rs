@@ -1,7 +1,7 @@
 fn main() {
     let gstreamer = pkg_config::Config::new().probe("gstreamer-1.0").unwrap();
 
-    let src = ["src/c/player.c"];
+    let src = ["src/audio/c/player.c"];
 
     let mut builder = cc::Build::new();
     let build = builder.files(src.iter());

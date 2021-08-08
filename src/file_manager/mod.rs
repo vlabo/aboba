@@ -23,11 +23,6 @@ pub struct Book {
     pub time: i64,
 }
 
-pub struct Books {
-    pub path: String,
-    pub list: Vec<Book>,
-}
-
 pub fn get_book(file: &str) -> Book {
     let mut chapters = Vec::new();
     let path = Path::new(file);
@@ -36,9 +31,16 @@ pub fn get_book(file: &str) -> Book {
     let tag = Tag::read_from_path(file);
 
     if let Ok(tag) = tag {
+        let mut chapter_index = 0;
     	for chapter in tag.chapters() {
+            chapter_index += 1;
+            let mut title = String::from(&chapter.title);
+            if title.is_empty() {
+                title = "Chapter ".to_owned() + &chapter_index.to_string();
+            }
+
     		chapters.push(Chapter {
-    			title: chapter.title.to_string(),
+    			title: title,
     			start: chapter.start.as_secs() as i64,
     			end: chapter.start.as_secs() as i64 + chapter.duration.as_secs() as i64,
     			duration: chapter.duration.as_secs() as i64,
@@ -72,7 +74,7 @@ pub fn get_book(file: &str) -> Book {
     };
 }
 
-pub fn init_dir(folder: &Path) -> io::Result<Books> {
+pub fn init_dir(folder: &Path) -> io::Result<Vec<Book>> {
     let mut json_books = Value::Null;
 
     let mut books: Vec<Book> = Vec::new();
@@ -111,19 +113,15 @@ pub fn init_dir(folder: &Path) -> io::Result<Books> {
         }
     }
 
-    let books_struct = Books {
-        path: folder.to_str().unwrap().to_string(),
-        list: books,
-    };
-    save_json(&books_struct);
-    Ok(books_struct)
+    save_json(folder.to_str().unwrap(), &books);
+    Ok(books)
 }
 
-pub fn save_json(books: &Books) {
-    let json_file = Path::new(&books.path).join("books.json");
+pub fn save_json(path: &str, books: &Vec<Book>) {
+    let json_file = Path::new(path).join("books.json");
     let mut values: Vec<Value> = Vec::new();
 
-    for book in &books.list {
+    for book in books {
         values.push(json!({
             "file": book.file,
             "time": book.time,
