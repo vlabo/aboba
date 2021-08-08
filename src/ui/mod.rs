@@ -1,5 +1,6 @@
 mod util;
 
+use std::cell::Cell;
 use core::time::Duration;
 use std::rc::Rc;
 use gtk::glib;
@@ -20,6 +21,8 @@ impl Ui {
             panic!("Missing Audiobooks folder");
         };
 
+
+        let inhibit_cookie = Rc::new(Cell::new(0));
         let ui_xml = include_str!("ui.glade");
 
         let builder = gtk::Builder::from_string(ui_xml);
@@ -109,13 +112,15 @@ impl Ui {
             main_stack.set_visible_child(&chapters_container);
         }));
 
-        player_play_button.connect_clicked(glib::clone!(@weak player_play_button, @strong player => move |_| {
+        player_play_button.connect_clicked(glib::clone!(@weak player_play_button, @weak application, @weak window, @strong player, @strong inhibit_cookie => move |_| {
             if player.is_playing() {
                 player_play_button.set_label("Play");
                 player.pause();
+                application.uninhibit(inhibit_cookie.get());
             } else {
                 player_play_button.set_label("Pause");
                 player.play();
+                inhibit_cookie.set(application.inhibit(Some(&window), gtk::ApplicationInhibitFlags::SUSPEND, Some("Aboba is playing.")));
             }
         }));
 
@@ -175,6 +180,13 @@ impl Ui {
                 player.set_position(new_position);
             }
 
+            gtk::Inhibit(false)
+        }));
+
+        // Window
+
+        window.connect_delete_event(glib::clone!(@strong player => @default-return gtk::Inhabit(false), move |_, _| {
+            player.close_book();
             gtk::Inhibit(false)
         }));
 

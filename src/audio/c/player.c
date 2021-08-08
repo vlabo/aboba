@@ -1,5 +1,16 @@
 #include <gst/gst.h>
 #include <stdio.h>
+#include <unistd.h>
+
+void * agst_setup(void);
+void agst_cleanup(void *gst_player);
+void agst_set_file(void *gst_player, char *uri);
+int agst_play(void *gst_player);
+int agst_pause(void *gst_player);
+int agst_is_playing(void *gst_player);
+int64_t agst_position(void *gst_player);
+int64_t agst_duration(void *gst_player);
+void agst_seek(void *gst_player, int64_t sec);
 
 void * agst_setup(void) {
     gst_init(0, 0);
@@ -12,6 +23,16 @@ void agst_cleanup(void *gst_player) {
 
 void agst_set_file(void *gst_player, char *uri) {
     g_object_set(G_OBJECT((GstElement *)gst_player), "uri", uri, NULL);
+
+    // Initialize pipeline
+    gst_element_set_state((GstElement *)gst_player, GST_STATE_PLAYING);
+
+    // Wait until starts playing and pause
+    while(agst_is_playing(gst_player) != 1) {
+        usleep(10);
+    }
+    
+    gst_element_set_state((GstElement *)gst_player, GST_STATE_PAUSED);
 }
 
 int agst_play(void *gst_player) {

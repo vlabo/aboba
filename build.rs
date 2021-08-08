@@ -1,4 +1,7 @@
 fn main() {
+    println!("cargo:rerun-if-changed=src/audio/c/player.c");
+
+
     let gstreamer = pkg_config::Config::new().probe("gstreamer-1.0").unwrap();
 
     let src = ["src/audio/c/player.c"];

@@ -16,9 +16,10 @@ Runs on linux using GTK3 and GStreamer.
 - [ ] Basic functionality  
     - [x] Play audio files
     - [x] Seeking
-    - [ ] Position saving
+    - [x] Position saving
     - [x] Reading chapters info (m4a, m4b and 3gp)
     - [ ] Audio book library
+    - [x] Prevent device from sleeping while playing
 - [ ] Better UX
     - [ ] Improve user interface
     - [ ] Playback speed

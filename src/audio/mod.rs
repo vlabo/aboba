@@ -46,6 +46,7 @@ impl Player {
             let book = books[index].clone();
             let path =  Path::new(&book.file);
             player.set_file(path);
+            player.set_position(book.time);
             self.audio_player.set(Some(player));
             self.current_book.set(Some(book));
         }
@@ -180,15 +181,16 @@ impl Player {
     pub fn close_book(&self) {
         if let Some(current_book) = self.current_book.take() {
             let mut books = self.books.take();
-            for i in 0..books.len() {
-                if books[i].title.eq(&current_book.title) {
-                    books[i].time = current_book.time;
-                    break;
+            if let Some(player) = self.audio_player.take() {
+                for i in 0..books.len() {
+                    if books[i].title.eq(&current_book.title) {
+                        books[i].time = player.get_position();
+                        break;
+                    }
                 }
             }
             super::file_manager::save_json(&self.folder, &books);
             self.books.set(books);
-            let _ = self.audio_player.take();
         }
     }
 
