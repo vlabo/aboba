@@ -1,9 +1,10 @@
 # абоба
 
 Mobile friendly audio book player.
-Runs on linux using GTK3 and GStreamer.
+Runs on linux using GTK3 and GStreamer.  
+<img src="screenshots/player.png" width="300px"/>
+<img src="screenshots/chapters.png" width="300px"/>
 
-![](screenshots/player.png | width=100) ![](screenshots/chapters.png | width=100)
 
 ## Build
 
