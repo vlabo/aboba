@@ -3,7 +3,7 @@
 Mobile friendly audio book player.
 Runs on linux using GTK3 and GStreamer.
 
-![Play Screen](screenshots/player.png) ![Chapters Screen](screenshots/chapters.png)
+![](screenshots/player.png | width=100) ![](screenshots/chapters.png | width=100)
 
 ## Build
 
