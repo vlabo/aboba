@@ -22,6 +22,7 @@ impl BookListView {
     fn fill_titles(&self, titles: &Vec<String>) {
         for title in titles {
             let label = gtk::Label::new(Some(title));
+            label.set_widget_name("book_label");
             label.set_wrap(true);
             self.list.add(&label);
             label.show();
@@ -58,8 +59,8 @@ impl ChaptersView {
         }
         for (title, duration) in &chapters {
             // Container for single chapter
-            println!("{}", title);
             let container = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+            container.set_widget_name("chapter_label");
             container.set_hexpand(true);
             self.list.add(&container);
 

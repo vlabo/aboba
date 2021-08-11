@@ -1,0 +1,17 @@
+#book_label {
+    border-style: solid;
+    border-width: 1px;
+    border-color: black;
+}
+
+#chapter_label {
+    border-style: solid;
+    border-width: 1px;
+    border-color: black;   
+}
+
+#play_button {}
+
+#left_button {}
+
+#right_button {}

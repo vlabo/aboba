@@ -189,15 +189,21 @@
             </child>
             <child>
               <object class="GtkBox" id="PlayerControlBox">
+                <property name="height-request">100</property>
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="valign">center</property>
+                <property name="vexpand">True</property>
+                <property name="spacing">50</property>
                 <child>
                   <object class="GtkButton" id="PlayerLeftButton">
-                    <property name="label" translatable="yes">&lt;</property>
+                    <property name="label" translatable="yes">&lt; 30s</property>
+                    <property name="name">left_button</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <property name="hexpand">True</property>
+                    <property name="vexpand">True</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -208,10 +214,12 @@
                 <child>
                   <object class="GtkButton" id="PlayButton">
                     <property name="label" translatable="yes">Play</property>
+                    <property name="name">play_button</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <property name="hexpand">True</property>
+                    <property name="vexpand">True</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -221,11 +229,13 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="PlayerRightButton">
-                    <property name="label" translatable="yes">&gt;</property>
+                    <property name="label" translatable="yes">30s &gt;</property>
+                    <property name="name">right_button</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <property name="hexpand">True</property>
+                    <property name="vexpand">True</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
