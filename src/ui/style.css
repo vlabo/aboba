@@ -10,8 +10,14 @@
     border-color: black;   
 }
 
-#play_button {}
+#play_button {
+    border-radius: 10%;
+}
 
-#left_button {}
+#left_button {
+    border-radius: 10%;
+}
 
-#right_button {}
+#right_button {
+    border-radius: 10%;
+}

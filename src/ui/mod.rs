@@ -44,6 +44,34 @@ struct PlayerView {
     chapter_label: gtk::Label,
 }
 
+impl PlayerView {
+    fn update(&self, player: &Player) {
+
+        self.update_time(player);
+        if let Some(title) = player.get_current_book_title() {
+            self.title_label.set_text(&title);
+        } else {
+            self.title_label.set_text("");
+        }
+
+        if let Some(title) = player.get_current_chapter_title() {
+            self.chapter_label.set_text(&title);
+        } else {
+            self.chapter_label.set_text("");
+        }
+    
+    }
+
+    fn update_time(&self, player: &Player) {
+        if let Some((duration, position)) = player.get_current_chapter_duration_and_position() {
+            self.progress_bar.set_range(0.0, duration as f64);
+            self.progress_bar.set_value(position as f64);
+            let lable_text = util::time_int_to_string(position) + "/" + &util::time_int_to_string(duration);
+            self.progress_label.set_text(&lable_text);
+        }
+    }
+}
+
 #[derive(Clone)]
 struct ChaptersView {
     container: gtk::Box,
@@ -138,6 +166,7 @@ impl Ui {
         book_list_view.select_button.connect_clicked(glib::clone!(@weak main_stack, @strong player_view, @strong book_list_view, @strong player => move |_| {
             if let Some(row) = book_list_view.list.selected_row() {
                 player.select_book(row.index() as usize);
+                player_view.update(&player);
                 main_stack.set_visible_child(&player_view.container);
             }
         }));
@@ -197,6 +226,7 @@ impl Ui {
         chapters_view.play_button.connect_clicked(glib::clone!(@weak main_stack, @strong player_view, @strong chapters_view, @strong player => move |_| {
             if let Some(row) = chapters_view.list.selected_row() {
                 player.set_chapter(row.index() as usize);
+                player_view.update(&player);
             }
             main_stack.set_visible_child(&player_view.container);
         }));
@@ -204,34 +234,19 @@ impl Ui {
 
         glib::timeout_add_local(
             Duration::from_millis(500),
-            glib::clone!(@strong player_view, @strong player => @default-return glib::Continue(false), move || {
-                if let Some((duration, position)) = player.get_current_chapter_duration_and_position() {
-                    player_view.progress_bar.set_range(0.0, duration as f64);
-                    player_view.progress_bar.set_value(position as f64);
-                    let lable_text = util::time_int_to_string(position) + "/" + &util::time_int_to_string(duration);
-                    player_view.progress_label.set_text(&lable_text);
-
-                    if let Some(title) = player.get_current_book_title() {
-                        player_view.title_label.set_text(&title);
-                    } else {
-                        player_view.title_label.set_text("");
-                    }
-
-                    if let Some(title) = player.get_current_chapter_title() {
-                        player_view.chapter_label.set_text(&title);
-                    } else {
-                        player_view.chapter_label.set_text("");
-                    }
-                }
-
+            glib::clone!(@strong player_view, @strong player, @weak window => @default-return glib::Continue(false), move || {
+                // if player.is_playing()  {
+                    player_view.update(&player);
+                // }
                 glib::Continue(true)
             }),
         );
 
-        player_view.progress_bar.connect_change_value(glib::clone!(@strong player => @default-return gtk::Inhibit(false), move |_, _, value| {
+        player_view.progress_bar.connect_change_value(glib::clone!(@strong player_view, @strong player => @default-return gtk::Inhibit(false), move |_, _, value| {
             if let Some((start, _)) = player.get_current_chapter_start_and_end() {
                 let new_position = start + value as i64;
                 player.set_position(new_position);
+                player_view.update_time(&player);
             }
 
             gtk::Inhibit(false)
